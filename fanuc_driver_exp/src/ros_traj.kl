@@ -78,6 +78,7 @@ TYPE
 		loop_hz      : INTEGER  -- main loop update rate (in Hz)
 		move_cnt     : INTEGER  -- CNT to use for each motion instruction
 		pr_move      : INTEGER  -- pos reg to use for next traj pt
+		num_pr_regs  : INTEGER  -- number of available position registers
 		r_move_cnt   : INTEGER  -- int reg to store traj segment CNT in
 		r_skip_sig   : INTEGER  -- int reg monitored by SKIP CONDITION in TP
 		r_tseg_vel   : INTEGER  -- int reg to store traj segment joint velocity percentage in
@@ -167,7 +168,7 @@ ROUTINE remove_ah_ FROM ros_traj
 ROUTINE install_es_ FROM ros_traj
 ROUTINE remove_es_ FROM ros_traj
 
-ROUTINE push_pt_(msg : sm000B_t; no_block : BOOLEAN; cfg : cfg_t; grp_nfo : grp_info_t) : INTEGER FROM ros_traj
+ROUTINE push_pt_(msg_list : sm000B_lst_t; no_block : BOOLEAN; cfg : cfg_t; grp_nfo : grp_info_t) : INTEGER FROM ros_traj
 ROUTINE cancl_mtion_(cfg : cfg_t) FROM ros_traj
 ROUTINE rst_cnclmtn_(cfg : cfg_t) FROM ros_traj
 
@@ -387,13 +388,13 @@ BEGIN
 
 
 		-- finally add new traj pt to list
+		log_warn(LOG_PFIX + ' adding new point')
 		sm000Bl_apnd(sm000B_lst_, msg000B_)
 		outs_msgs_ = outs_msgs_ + 1
 
 
 	-- 'continue without a new message'
 	lbl_cnomsg::
-
 		-- if len(buffer) < threshold, request next one (ie: ACK)
 		IF (sm000Bl_size(sm000B_lst_) < cfg.trjpt_buf_sz) AND (outs_msgs_ > 0) THEN
 
@@ -434,7 +435,9 @@ BEGIN
 
 		-- .. and try pushing the oldest traj pt to the TP side, but do so
 		-- without blocking (we'll try again next iter)
-		stat__ = push_pt_(sm000B_lst_[HEAD_OF_LIST], NO_BLOCK, cfg, grp_nfo)
+		IF (sm000Bl_size(sm000B_lst_) >= cfg.trjpt_buf_sz) THEN
+			stat__ = push_pt_(sm000B_lst_, NO_BLOCK, cfg, grp_nfo)
+		ENDIF
 
 		-- if TP side was busy, try again later
 		-- TODO: add 'nodelay' lbl to skip DELAY
@@ -447,10 +450,8 @@ BEGIN
 		ENDIF
 
 		-- TODO: debug only
-		log_info_a(LOG_PFIX + 'pushed:', sm000B_lst_[HEAD_OF_LIST].sequence)
-
-		-- push successfull, remove
-		sm000Bl_rmov(sm000B_lst_, HEAD_OF_LIST)
+		-- log_info_a(LOG_PFIX + 'pushed:', sm000B_lst_[HEAD_OF_LIST].sequence)
+		log_info(LOG_PFIX + 'points pushed')
 
 
 		-- sleep a little
@@ -582,6 +583,7 @@ BEGIN
 	IF (UNINIT(cfg.loop_hz     )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.move_cnt    )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.pr_move     )) THEN RETURN (CFG_NOTDONE); ENDIF
+	IF (UNINIT(cfg.num_pr_regs )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.r_move_cnt  )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.r_skip_sig  )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.r_tseg_vel  )) THEN RETURN (CFG_NOTDONE); ENDIF
@@ -724,39 +726,64 @@ VAR
 	stat__       : INTEGER
 	vel_perc__   : INTEGER
 	jpos__       : JOINTPOS
+	i			 : INTEGER
+	list_ssize    : INTEGER
 BEGIN
 	-- if TP has not signalled 'ready' and we can't block, return
 	IF (no_block AND (FLG[cfg.f_msm_rdy] = OFF)) THEN
 		RETURN (-EWOULDBLOCK)
 	ENDIF
 
+	-- ADD LOOP HERE TO ADD ALL POINTS TO THE REGISTERS
 	-- map ROS velocity to Fanuc joint vel
-	vel_perc__ = ROUND(msg.velocity * 1e2)
-	IF (vel_perc__ > 100) THEN vel_perc__ = 100; ENDIF
-	IF (vel_perc__ <   1) THEN vel_perc__ =   1; ENDIF
+	i = 0
+	-- List start size (var names can have max 12 chars)
+	list_ssize = sm000Bl_size(msg_list)
+	log_info_a(LOG_PFIX + 'list size:', list_ssize)
+	IF (list_ssize < 1) THEN RETURN (-1); ENDIF
+	WHILE ( i < list_ssize) DO
+		-- get first point -> convert it -> write to register -> remove point
+		vel_perc__ = ROUND(msg_list[1].velocity * 1e2)
+		IF (vel_perc__ > 100) THEN vel_perc__ = 100; ENDIF
+		IF (vel_perc__ <   1) THEN vel_perc__ =   1; ENDIF
 
-	-- TODO: add multi-group support
+		-- TODO: add multi-group support
 
-	-- convert ROS traj pt to Fanuc 'joint position'
-	stat__ = jdta_to_jpos(msg.joint_data, grp_nfo, jpos__)
-	IF (stat__ <> 0) THEN RETURN (-ABS(stat__)); ENDIF
+		-- convert ROS traj pt to Fanuc 'joint position'
+		stat__ = jdta_to_jpos(msg_list[1].joint_data, grp_nfo, jpos__)
+		IF (stat__ <> 0) THEN RETURN (-ABS(stat__)); ENDIF
 
-	-- check again here, as caller could have specified that we are
-	-- allowed to block (if not, then we can only get here if 'rdy'
-	-- is already 'ON' and we will not block here)
-	WAIT FOR (FLG[cfg.f_msm_rdy] = ON)
+		-- check again here, as caller could have specified that we are
+		-- allowed to block (if not, then we can only get here if 'rdy'
+		-- is already 'ON' and we will not block here)
+		WAIT FOR (FLG[cfg.f_msm_rdy] = ON)
 
-	-- set target joint pos
-	SET_JPOS_REG(cfg.pr_move, jpos__, stat__)
+		-- set target joint pos
+		log_info_a(LOG_PFIX + 'setting reg for pt:', i)
+		SET_JPOS_REG(cfg.pr_move+i, jpos__, stat__)
+		IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
+		log_info_a(LOG_PFIX + 'set reg:', cfg.pr_move+i)
+
+		-- set traj segment velocity, percentage of max joint vel
+		SET_INT_REG(cfg.r_tseg_vel, vel_perc__, stat__)
+		IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
+
+		-- set motion termination (from config)
+		SET_INT_REG(cfg.r_move_cnt, cfg.move_cnt, stat__)
+		IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
+
+		-- push successfull, remove
+		sm000Bl_rmov(msg_list, 1)
+
+		-- increment i
+		i = i + 1
+	ENDWHILE
+
+	-- set number of points register to only drive number of points contained in list
+	SET_INT_REG(3, list_ssize, stat__)
 	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
 
-	-- set traj segment velocity, percentage of max joint vel
-	SET_INT_REG(cfg.r_tseg_vel, vel_perc__, stat__)
-	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
-
-	-- set motion termination (from config)
-	SET_INT_REG(cfg.r_move_cnt, cfg.move_cnt, stat__)
-	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
+	log_info_a(LOG_PFIX + 'points processed: ', i)
 
 	-- signal new pt available
 	FLG[cfg.f_msm_drdy] = ON

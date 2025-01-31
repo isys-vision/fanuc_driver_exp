@@ -499,7 +499,7 @@ BEGIN
 	ELSE                              msg.mtn_psble = SM_TRI_FALSE; ENDIF
 
 	-- Also: status of the trajectory relay influences 'motion possible'
-	IF (NOT is_running_('ROS_TRAJ')) THEN
+	IF NOT is_running_('ROS_TRAJ') THEN
 		msg.mtn_psble = SM_TRI_FALSE
 	ENDIF
 END upd_sm000D_

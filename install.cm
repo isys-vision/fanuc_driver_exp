@@ -71,7 +71,10 @@ PCLOAD product\fdexp\libsm000b.pc
 PCLOAD product\fdexp\libsm000d.pc
 PCLOAD product\fdexp\ros_state.pc
 PCLOAD product\fdexp\ros_traj.pc
+! TODO: ADD DELTP BEFORE LOADING THE FILES TO PREVENT ISSUES IF FILE ALREADY EXISTS
+DELTP product\fdexp\ros.tp
 TPLOAD product\fdexp\ros.tp
+DELTP product\fdexp\ros_movesm.tp
 TPLOAD product\fdexp\ros_movesm.tp
 WR_FILE install.log "INFO  | end file copy"
 !

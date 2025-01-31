@@ -105,7 +105,7 @@ BEGIN
 
 	-- set all settings to their defaults
 
-	SET_VAR(0, PROG_NAME, 'cfg_.checked', FALSE, stat_)
+	SET_VAR(0, PROG_NAME, 'cfg_.checked', TRUE, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.loop_hz', LOOP_HZ, stat_)

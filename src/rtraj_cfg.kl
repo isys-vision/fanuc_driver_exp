@@ -68,11 +68,12 @@ CONST
 	MOT_SKIP_SIG =    1  -- value to write to SKIP CONDITION register to signal
 	                     -- motion abort to TP side
 
-	BUF_THRSHLD  =    6  -- desired nr of TRAJ_PTs in buffer
+	BUF_THRSHLD  =    20  -- desired nr of TRAJ_PTs in buffer
 
 
 	-- ros_movesm interface defaults:
-	PR_MOVE_IDX  =    1  -- position register for current point
+	PR_MOVE_IDX  =    60  -- first position register
+	NUM_PR_REGS  = 	  20
 
 	R_TSEGV_IDX  =    1  -- integer register: traj segment velocity (in %)
 	R_MOVE_CNT   =    2  -- integer register: motion termination (in %)
@@ -123,7 +124,7 @@ BEGIN
 
 	-- set all settings to their defaults
 
-	SET_VAR(0, PROG_NAME, 'cfg_.checked', FALSE, stat_)
+	SET_VAR(0, PROG_NAME, 'cfg_.checked', TRUE, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.f_msm_drdy', RI_MSM_DRDY, stat_)
@@ -139,6 +140,9 @@ BEGIN
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.pr_move', PR_MOVE_IDX, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.num_pr_regs', NUM_PR_REGS, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.r_move_cnt', R_MOVE_CNT, stat_)

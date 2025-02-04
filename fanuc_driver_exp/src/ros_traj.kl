@@ -707,7 +707,7 @@ END remove_es_
 
 --------------------------------------------------------------------------------
 --
--- This routine communicates the new joint position to the 'Move SM' TPE 
+-- This routine communicates the new joint position to the 'Move SM' TPE
 -- program using the configured flags, position and integer registers.
 --
 -- NOTE: reachability of the joint position passed in (via 'msg') is not

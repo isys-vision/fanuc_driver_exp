@@ -13,9 +13,9 @@
 --    copyright notice, this list of conditions and the following
 --    disclaimer in the documentation and/or other materials provided
 --    with the distribution.
---  * Neither the name of the TU Delft Robotics Institute nor the names 
---    of its contributors may be used to endorse or promote products 
---    derived from this software without specific prior written 
+--  * Neither the name of the TU Delft Robotics Institute nor the names
+--    of its contributors may be used to endorse or promote products
+--    derived from this software without specific prior written
 --    permission.
 --
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -36,23 +36,23 @@
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- libssock routine prototypes
--- 
+--
 -- author: G.A. vd. Hoorn (TU Delft Robotics Institute)
--- 
+--
 --------------------------------------------------------------------------------
 
 
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Ping a host on the network. No connected socket necessary.
--- 
--- NB: hostname needs to be known to robot (setup DNS and / or 'Host Entry 
+--
+-- NB: hostname needs to be known to robot (setup DNS and / or 'Host Entry
 --     table')
--- 
+--
 --------------------------------------------------------------------------------
 ROUTINE ssock_ping(host : STRING) : INTEGER FROM libssock
 
@@ -60,10 +60,10 @@ ROUTINE ssock_ping(host : STRING) : INTEGER FROM libssock
 
 
 --------------------------------------------------------------------------------
--- 
--- Constructor: sets up member variables and initialises related robot 
+--
+-- Constructor: sets up member variables and initialises related robot
 -- system variable.
--- 
+--
 --------------------------------------------------------------------------------
 ROUTINE ssock_ctor(this : ssock_t; tcp_port : INTEGER; tag_idx : INTEGER) : INTEGER FROM libssock
 
@@ -71,9 +71,9 @@ ROUTINE ssock_ctor(this : ssock_t; tcp_port : INTEGER; tag_idx : INTEGER) : INTE
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Dump string rep of the given instance to to file descriptor 'fd'.
--- 
+--
 --------------------------------------------------------------------------------
 ROUTINE ssock_dump(this : ssock_t; fd : FILE) FROM libssock
 
@@ -81,9 +81,9 @@ ROUTINE ssock_dump(this : ssock_t; fd : FILE) FROM libssock
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Wait for a connection on the given socket instance, if not already connected
--- 
+--
 --------------------------------------------------------------------------------
 ROUTINE ssock_accept(this : ssock_t) : INTEGER FROM libssock
 
@@ -91,9 +91,9 @@ ROUTINE ssock_accept(this : ssock_t) : INTEGER FROM libssock
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Disconnect the socket, if connected.
--- 
+--
 --------------------------------------------------------------------------------
 ROUTINE ssock_dconn(this : ssock_t) : INTEGER FROM libssock
 
@@ -101,9 +101,9 @@ ROUTINE ssock_dconn(this : ssock_t) : INTEGER FROM libssock
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Open a file descriptor on the given socket instance
--- 
+--
 --------------------------------------------------------------------------------
 ROUTINE ssock_ofd(this : ssock_t; fd : FILE; mode : STRING) : INTEGER FROM libssock
 
@@ -111,9 +111,9 @@ ROUTINE ssock_ofd(this : ssock_t; fd : FILE; mode : STRING) : INTEGER FROM libss
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Close the given file descriptor (on the given socket instance)
--- 
+--
 --------------------------------------------------------------------------------
 ROUTINE ssock_cfd(this : ssock_t; fd : FILE) : INTEGER FROM libssock
 
@@ -121,9 +121,9 @@ ROUTINE ssock_cfd(this : ssock_t; fd : FILE) : INTEGER FROM libssock
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Disconnect the socket, unconditionally.
--- 
+--
 --------------------------------------------------------------------------------
 ROUTINE ssock_dconnf(this : ssock_t) : INTEGER FROM libssock
 
@@ -131,10 +131,10 @@ ROUTINE ssock_dconnf(this : ssock_t) : INTEGER FROM libssock
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Wait for a connection on the given socket instance. If successful,
 -- open given file descriptor on it.
--- 
+--
 --------------------------------------------------------------------------------
 ROUTINE ssock_accpt2(this : ssock_t; fd : FILE) : INTEGER FROM libssock
 
@@ -142,9 +142,9 @@ ROUTINE ssock_accpt2(this : ssock_t; fd : FILE) : INTEGER FROM libssock
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Disconnect the socket, if connected. Then close given file descriptor.
--- 
+--
 --------------------------------------------------------------------------------
 ROUTINE ssock_dconn2(this : ssock_t; fd : FILE) : INTEGER FROM libssock
 

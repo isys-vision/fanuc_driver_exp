@@ -16,14 +16,14 @@
 
 PROGRAM librosfanuc
 --------------------------------------------------------------------------------
--- 
+--
 -- librosfanuc implementation.
 --
 -- Utility functions to convert from and to ROS and Fanuc data structures
 -- and types.
--- 
+--
 -- author: G.A. vd. Hoorn (TU Delft Robotics Institute)
--- 
+--
 --------------------------------------------------------------------------------
 %ALPHABETIZE
 %COMMENT = 'ROS//r3b'
@@ -35,9 +35,9 @@ PROGRAM librosfanuc
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- local types & constants
--- 
+--
 --------------------------------------------------------------------------------
 %INCLUDE rosfanuc\rosfanuc.klt
 
@@ -55,9 +55,9 @@ PROGRAM librosfanuc
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- local routine prototypes
--- 
+--
 --------------------------------------------------------------------------------
 %INCLUDE rosfanuc\rosfanuc.klh
 
@@ -65,9 +65,9 @@ PROGRAM librosfanuc
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Empty body
--- 
+--
 --------------------------------------------------------------------------------
 BEGIN
 END librosfanuc

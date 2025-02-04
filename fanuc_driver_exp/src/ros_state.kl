@@ -94,7 +94,7 @@ CONST
 
 
 CONST
-	                     -- '$MOR.$safety_stat', R-J3iC Software Reference Manual, 
+	                     -- '$MOR.$safety_stat', R-J3iC Software Reference Manual,
 	                     --   MARACSSRF03061E Rev A
 	MFS_EMGOP    =    1  -- E-Stop SOP
 	MFS_EMGTP    =    2  -- E-Stop TP
@@ -457,10 +457,10 @@ BEGIN
 
 	-- Determine state of E-Stop
 	--
-	-- NOTE: this checks TP E-Stop, Controller Cabinet E-Stop 
+	-- NOTE: this checks TP E-Stop, Controller Cabinet E-Stop
 	--       AND External E-Stop
 	--
-	-- '$MOR.$safety_stat', R-J3iC Software Reference Manual, 
+	-- '$MOR.$safety_stat', R-J3iC Software Reference Manual,
 	-- MARACSSRF03061E Rev A
 	msg.e_stopped = SM_TRI_FALSE
 	IF (e_stopped_(sstat__)) THEN msg.e_stopped = SM_TRI_TRUE; ENDIF
@@ -472,8 +472,8 @@ BEGIN
 
 	-- use state of FAULT LED as fault indicator, and report most recent error.
 	--
-	-- The 'FAULT' signal (OPOUT[21]) is only available when UOP signals have 
-	-- been properly configured, so use the 'FAULT LED' as an indirect 
+	-- The 'FAULT' signal (OPOUT[21]) is only available when UOP signals have
+	-- been properly configured, so use the 'FAULT LED' as an indirect
 	-- indicator.
 	--
 	-- Table 14-2, Karel Reference Manual, MARRC75KR07091E Rev C
@@ -487,12 +487,12 @@ BEGIN
 	ENDIF
 
 	-- Use 'servo_ready' system variable as indicator for 'SYSRDY' (OPOUT[17])
-	-- '$MOR_GRP[n].$servo_ready', R-J3iC Software Reference Manual, 
+	-- '$MOR_GRP[n].$servo_ready', R-J3iC Software Reference Manual,
 	-- MARACSSRF03061E Rev A
 	msg.drvs_pwd   = SM_TRI_FALSE
 	IF ($MOR_GRP[MTION_GRP].$SERVO_READY) THEN msg.drvs_pwd = SM_TRI_TRUE; ENDIF
 
-	-- Derive 'motion possible' from various system variables and in/output 
+	-- Derive 'motion possible' from various system variables and in/output
 	-- signals.
 	msg.mtn_psble = SM_TRI_UNKNW
 	IF (mot_poss_(msg, sstat__)) THEN msg.mtn_psble = SM_TRI_TRUE;

@@ -13,9 +13,9 @@
 --    copyright notice, this list of conditions and the following
 --    disclaimer in the documentation and/or other materials provided
 --    with the distribution.
---  * Neither the name of the TU Delft Robotics Institute nor the names 
---    of its contributors may be used to endorse or promote products 
---    derived from this software without specific prior written 
+--  * Neither the name of the TU Delft Robotics Institute nor the names
+--    of its contributors may be used to endorse or promote products
+--    derived from this software without specific prior written
 --    permission.
 --
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -36,11 +36,11 @@
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- libssock shared type / constant decls
--- 
+--
 -- author: G.A. vd. Hoorn (TU Delft Robotics Institute)
--- 
+--
 --------------------------------------------------------------------------------
 
 type

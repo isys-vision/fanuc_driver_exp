@@ -13,9 +13,9 @@
 --    copyright notice, this list of conditions and the following
 --    disclaimer in the documentation and/or other materials provided
 --    with the distribution.
---  * Neither the name of the TU Delft Robotics Institute nor the names 
---    of its contributors may be used to endorse or promote products 
---    derived from this software without specific prior written 
+--  * Neither the name of the TU Delft Robotics Institute nor the names
+--    of its contributors may be used to endorse or promote products
+--    derived from this software without specific prior written
 --    permission.
 --
 -- THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
@@ -34,15 +34,15 @@
 
 PROGRAM libssock
 --------------------------------------------------------------------------------
--- 
+--
 -- Convenience wrapper around the KAREL Socket Programming extensions. Only
 -- works for Server TAGs right now.
--- 
+--
 -- See also KAREL Reference Manual, MARRC75KR07091E Rev C, chap. 11
--- 
--- 
+--
+--
 -- author: G.A. vd. Hoorn (TU Delft Robotics Institute)
--- 
+--
 --------------------------------------------------------------------------------
 %ALPHABETIZE
 %COMMENT = 'ROS//r1'
@@ -54,9 +54,9 @@ PROGRAM libssock
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- local types & constants
--- 
+--
 --------------------------------------------------------------------------------
 %INCLUDE libssock.klt
 
@@ -64,9 +64,9 @@ PROGRAM libssock
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- local routine prototypes
--- 
+--
 --------------------------------------------------------------------------------
 %INCLUDE libssock.klh
 
@@ -74,9 +74,9 @@ PROGRAM libssock
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Empty body
--- 
+--
 --------------------------------------------------------------------------------
 BEGIN
 END libssock

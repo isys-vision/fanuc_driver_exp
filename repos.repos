@@ -1,8 +1,4 @@
 repositories:
-  fanuc_driver_exp:
-    type: git
-    url: https://github.com/isys-vision/fanuc_driver_exp.git
-    version: mikado
   libindlog:
     type: git
     url: https://github.com/gavanderhoorn/libindlog_kl.git

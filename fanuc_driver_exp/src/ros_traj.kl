@@ -72,7 +72,6 @@ TYPE
 	--       to be in-sync with whatever the ROS_MOVESM TP prog is using (flags,
 	--       int registers, pos registers, values, etc).
 	cfg_t = STRUCTURE
-		checked      : BOOLEAN  -- user flagged: config checked
 		f_msm_drdy   : INTEGER  -- flag used for 'motion sm data ready' signal
 		f_msm_rdy    : INTEGER  -- flag used for 'motion sm ready' signal
 		loop_hz      : INTEGER  -- main loop update rate (in Hz)
@@ -576,7 +575,6 @@ END nack_svcreq_
 ROUTINE check_cfg_
 BEGIN
 	-- make sure config has been setup
-	IF (UNINIT(cfg.checked     )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.f_msm_drdy  )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.f_msm_rdy   )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.loop_hz     )) THEN RETURN (CFG_NOTDONE); ENDIF
@@ -591,9 +589,6 @@ BEGIN
 	IF (UNINIT(cfg.tp_val_trstp)) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.trjpt_buf_sz)) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.um_clear    )) THEN RETURN (CFG_NOTDONE); ENDIF
-
-	-- make sure user has checked configuration
-	IF (NOT cfg.checked) THEN RETURN (CFG_NOTDONE); ENDIF
 
 	-- all ok
 	RETURN (CFG_OK)

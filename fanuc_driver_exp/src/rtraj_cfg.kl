@@ -58,11 +58,11 @@ CONST
 	RACCEPT_DLAY = 1000  -- default 'return to sock_accept' delay
 
 	TAG_NR       =    4  -- Server tag
-	TCP_PORT     = SM_SP_MOTION
+	TCP_PORT     =    SM_SP_MOTION
 
 	MOVE_CNT     =   50  -- CNT value to use with ros_movesm
 
-	LOOP_HZ      =  125  -- Main loop freq (Hz).On 12ms ITP controllers
+	LOOP_HZ      =   125  -- Main loop freq (Hz).On 12ms ITP controllers
 	                     -- ROS_TRAJ will run at 83 Hz (GH #203).
 
 	MOT_SKIP_SIG =    1  -- value to write to SKIP CONDITION register to signal
@@ -72,14 +72,14 @@ CONST
 
 
 	-- ros_movesm interface defaults:
-	PR_MOVE_IDX  =    1  -- position register for current point
-
-	R_TSEGV_IDX  =    1  -- integer register: traj segment velocity (in %)
-	R_MOVE_CNT   =    2  -- integer register: motion termination (in %)
 	R_SKPSIG_IDX =    5  -- integer register: SKIP CONDITION register
 
 	RI_MSM_RDY   =    1  -- ready signal flag
 	RI_MSM_DRDY  =    2  -- data ready signal flag
+
+	FIRST_PR	 = 60
+	R_FIRST_PR   = 6
+	R_NR_OF_PTS  = 2
 
 
 
@@ -132,19 +132,7 @@ BEGIN
 	SET_VAR(0, PROG_NAME, 'cfg_.loop_hz', LOOP_HZ, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-	SET_VAR(0, PROG_NAME, 'cfg_.move_cnt', MOVE_CNT, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.pr_move', PR_MOVE_IDX, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.r_move_cnt', R_MOVE_CNT, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
 	SET_VAR(0, PROG_NAME, 'cfg_.r_skip_sig', R_SKPSIG_IDX, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.r_tseg_vel', R_TSEGV_IDX, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.s_accpt_dlay', RACCEPT_DLAY, stat_)
@@ -163,6 +151,15 @@ BEGIN
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.um_clear', TRUE, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.first_pr', FIRST_PR, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_first_pr', R_FIRST_PR, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_nr_of_pts', R_NR_OF_PTS, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 END rtraj_cfg

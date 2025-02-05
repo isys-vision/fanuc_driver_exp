@@ -75,11 +75,10 @@ TYPE
 		f_msm_drdy   : INTEGER  -- flag used for 'motion sm data ready' signal
 		f_msm_rdy    : INTEGER  -- flag used for 'motion sm ready' signal
 		loop_hz      : INTEGER  -- main loop update rate (in Hz)
-		move_cnt     : INTEGER  -- CNT to use for each motion instruction
-		pr_move      : INTEGER  -- pos reg to use for next traj pt
-		r_move_cnt   : INTEGER  -- int reg to store traj segment CNT in
+		first_pr     : INTEGER  -- first pr
+		r_first_pr	 : INTEGER  -- int reg to store first pr
+		r_nr_of_pts  : INTEGER  -- int reg to store nr of points to drive
 		r_skip_sig   : INTEGER  -- int reg monitored by SKIP CONDITION in TP
-		r_tseg_vel   : INTEGER  -- int reg to store traj segment joint velocity percentage in
 		s_accpt_dlay : INTEGER  -- 'return to sock_accept' delay (ms)
 		s_tag_nr     : INTEGER  -- server TAG number to use
 		s_tcp_nr     : INTEGER  -- TCP port to listen on
@@ -166,7 +165,7 @@ ROUTINE remove_ah_ FROM ros_traj
 ROUTINE install_es_ FROM ros_traj
 ROUTINE remove_es_ FROM ros_traj
 
-ROUTINE push_pt_(msg : sm000B_t; no_block : BOOLEAN; cfg : cfg_t; grp_nfo : grp_info_t) : INTEGER FROM ros_traj
+ROUTINE push_pt_(pt_list : sm000B_lst_t; no_block : BOOLEAN; cfg : cfg_t; grp_nfo : grp_info_t) : INTEGER FROM ros_traj
 ROUTINE cancl_mtion_(cfg : cfg_t) FROM ros_traj
 ROUTINE rst_cnclmtn_(cfg : cfg_t) FROM ros_traj
 
@@ -193,6 +192,8 @@ BEGIN
 		POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT)
 		RETURN
 	ENDIF
+
+	MSG_DISCO("S4:", 0)
 
 
 	-- enable log output
@@ -433,7 +434,7 @@ BEGIN
 
 		-- .. and try pushing the oldest traj pt to the TP side, but do so
 		-- without blocking (we'll try again next iter)
-		stat__ = push_pt_(sm000B_lst_[HEAD_OF_LIST], NO_BLOCK, cfg, grp_nfo)
+		stat__ = push_pt_(sm000B_lst_, NO_BLOCK, cfg, grp_nfo)
 
 		-- if TP side was busy, try again later
 		-- TODO: add 'nodelay' lbl to skip DELAY
@@ -446,10 +447,12 @@ BEGIN
 		ENDIF
 
 		-- TODO: debug only
-		log_info_a(LOG_PFIX + 'pushed:', sm000B_lst_[HEAD_OF_LIST].sequence)
+		log_info_a(LOG_PFIX + 'pushed pts:', sm000Bl_size(sm000B_lst_))
 
 		-- push successfull, remove
-		sm000Bl_rmov(sm000B_lst_, HEAD_OF_LIST)
+		-- sm000Bl_rmov(sm000B_lst_, HEAD_OF_LIST)
+		sm000Bl_cler(sm000B_lst_)
+		-- outs_msgs_ = 0
 
 
 		-- sleep a little
@@ -575,20 +578,19 @@ END nack_svcreq_
 ROUTINE check_cfg_
 BEGIN
 	-- make sure config has been setup
-	IF (UNINIT(cfg.f_msm_drdy  )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.f_msm_rdy   )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.loop_hz     )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.move_cnt    )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.pr_move     )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.r_move_cnt  )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.r_skip_sig  )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.r_tseg_vel  )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.s_accpt_dlay)) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.s_tag_nr    )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.s_tcp_nr    )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.tp_val_trstp)) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.trjpt_buf_sz)) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.um_clear    )) THEN RETURN (CFG_NOTDONE); ENDIF
+	IF (UNINIT(cfg.f_msm_drdy  )) THEN RETURN (-1); ENDIF
+	IF (UNINIT(cfg.f_msm_rdy   )) THEN RETURN (-2); ENDIF
+	IF (UNINIT(cfg.loop_hz     )) THEN RETURN (-3); ENDIF
+	IF (UNINIT(cfg.r_skip_sig  )) THEN RETURN (-4); ENDIF
+	IF (UNINIT(cfg.s_accpt_dlay)) THEN RETURN (-5); ENDIF
+	IF (UNINIT(cfg.s_tag_nr    )) THEN RETURN (-6); ENDIF
+	IF (UNINIT(cfg.s_tcp_nr    )) THEN RETURN (-7); ENDIF
+	IF (UNINIT(cfg.tp_val_trstp)) THEN RETURN (-8); ENDIF
+	IF (UNINIT(cfg.trjpt_buf_sz)) THEN RETURN (-9); ENDIF
+	IF (UNINIT(cfg.um_clear    )) THEN RETURN (-10); ENDIF
+	IF (UNINIT(cfg.first_pr    )) THEN RETURN (-11); ENDIF
+	IF (UNINIT(cfg.r_first_pr  )) THEN RETURN (-12); ENDIF
+	IF (UNINIT(cfg.r_nr_of_pts )) THEN RETURN (-13); ENDIF
 
 	-- all ok
 	RETURN (CFG_OK)
@@ -719,38 +721,45 @@ VAR
 	stat__       : INTEGER
 	vel_perc__   : INTEGER
 	jpos__       : JOINTPOS
+	nr_of_pts	 : INTEGER
+	i 			 : INTEGER
+	msg			 : sm000B_t
 BEGIN
 	-- if TP has not signalled 'ready' and we can't block, return
 	IF (no_block AND (FLG[cfg.f_msm_rdy] = OFF)) THEN
 		RETURN (-EWOULDBLOCK)
 	ENDIF
+	i = 1
+	nr_of_pts = sm000Bl_size(pt_list)
+	WHILE (i<=nr_of_pts) DO
+		msg = pt_list[i]
+		-- map ROS velocity to Fanuc joint vel
+		vel_perc__ = ROUND(msg.velocity * 1e2)
+		IF (vel_perc__ > 100) THEN vel_perc__ = 100; ENDIF
+		IF (vel_perc__ <   1) THEN vel_perc__ =   1; ENDIF
 
-	-- map ROS velocity to Fanuc joint vel
-	vel_perc__ = ROUND(msg.velocity * 1e2)
-	IF (vel_perc__ > 100) THEN vel_perc__ = 100; ENDIF
-	IF (vel_perc__ <   1) THEN vel_perc__ =   1; ENDIF
+		-- TODO: add multi-group support
 
-	-- TODO: add multi-group support
+		-- convert ROS traj pt to Fanuc 'joint position'
+		stat__ = jdta_to_jpos(msg.joint_data, grp_nfo, jpos__)
+		IF (stat__ <> 0) THEN RETURN (-ABS(stat__)); ENDIF
 
-	-- convert ROS traj pt to Fanuc 'joint position'
-	stat__ = jdta_to_jpos(msg.joint_data, grp_nfo, jpos__)
-	IF (stat__ <> 0) THEN RETURN (-ABS(stat__)); ENDIF
+		-- check again here, as caller could have specified that we are
+		-- allowed to block (if not, then we can only get here if 'rdy'
+		-- is already 'ON' and we will not block here)
+		WAIT FOR (FLG[cfg.f_msm_rdy] = ON)
 
-	-- check again here, as caller could have specified that we are
-	-- allowed to block (if not, then we can only get here if 'rdy'
-	-- is already 'ON' and we will not block here)
-	WAIT FOR (FLG[cfg.f_msm_rdy] = ON)
+		-- set target joint pos
+		SET_JPOS_REG(cfg.r_first_pr -1 + i, jpos__, stat__)
+		IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
 
-	-- set target joint pos
-	SET_JPOS_REG(cfg.pr_move, jpos__, stat__)
+		i = i + 1
+	ENDWHILE
+
+	SET_INT_REG(cfg.r_nr_of_pts, nr_of_pts, stat__)
 	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
 
-	-- set traj segment velocity, percentage of max joint vel
-	SET_INT_REG(cfg.r_tseg_vel, vel_perc__, stat__)
-	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
-
-	-- set motion termination (from config)
-	SET_INT_REG(cfg.r_move_cnt, cfg.move_cnt, stat__)
+	SET_INT_REG(cfg.r_first_pr, cfg.first_pr, stat__)
 	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
 
 	-- signal new pt available

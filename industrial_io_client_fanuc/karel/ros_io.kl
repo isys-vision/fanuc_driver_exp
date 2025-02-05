@@ -71,7 +71,6 @@ PROGRAM ros_io
 --------------------------------------------------------------------------------
 TYPE
 	rosio_cfg_t = STRUCTURE
-		checked      : BOOLEAN  -- user flagged: config checked
 		loop_hz      : INTEGER 
 		s_tcp_nr     : INTEGER  -- TCP port to listen on
 		s_tag_nr     : INTEGER  -- server TAG number to use
@@ -207,7 +206,7 @@ BEGIN
 		WHILE (NOT shutdwn_req_) DO
 		
 		-- TODO: Tim
-		--Bedingung für das Streamen festlegen/bestimmen
+		--Bedingung fï¿½r das Streamen festlegen/bestimmen
 		--conditionhandler
 		
 				
@@ -265,10 +264,6 @@ BEGIN
 	IF (UNINIT(cfg.s_tag_nr  )) THEN cfg.s_tag_nr   = IO_TAG  ; a__ = TRUE; ENDIF
 	IF (UNINIT(cfg.um_clear  )) THEN cfg.um_clear   = TRUE        ; a__ = TRUE; ENDIF
 	IF (UNINIT(cfg.loop_hz  )) THEN cfg.loop_hz    = LOOP_HZ     ; a__ = TRUE; ENDIF
-	IF (UNINIT(cfg.checked   )) THEN cfg.checked    = FALSE       ; a__ = TRUE; ENDIF
-
-	-- make sure user has checked configuration
-	IF ((NOT cfg.checked) OR a__) THEN RETURN (CFG_NOTDONE); ENDIF
 
 	-- all ok
 	RETURN (CFG_OK)

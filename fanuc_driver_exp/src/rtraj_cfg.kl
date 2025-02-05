@@ -123,9 +123,6 @@ BEGIN
 
 	-- set all settings to their defaults
 
-	SET_VAR(0, PROG_NAME, 'cfg_.checked', FALSE, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
 	SET_VAR(0, PROG_NAME, 'cfg_.f_msm_drdy', RI_MSM_DRDY, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 

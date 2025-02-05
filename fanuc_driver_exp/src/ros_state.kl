@@ -66,7 +66,6 @@ PROGRAM ros_state
 --------------------------------------------------------------------------------
 TYPE
 	cfg_t = STRUCTURE
-		checked      : BOOLEAN  -- user flagged: config checked
 		loop_hz      : INTEGER  -- main loop update rate (in Hz)
 		s_accpt_dlay : INTEGER  -- 'return to sock_accept' delay (ms)
 		s_tag_nr     : INTEGER  -- server TAG number to use
@@ -556,15 +555,11 @@ END writ_sm000D_
 ROUTINE check_cfg_
 BEGIN
 	-- make sure config has been setup
-	IF (UNINIT(cfg.checked     )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.loop_hz     )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.s_accpt_dlay)) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.s_tag_nr    )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.s_tcp_nr    )) THEN RETURN (CFG_NOTDONE); ENDIF
 	IF (UNINIT(cfg.um_clear    )) THEN RETURN (CFG_NOTDONE); ENDIF
-
-	-- make sure user has checked configuration
-	IF (NOT cfg.checked) THEN RETURN (CFG_NOTDONE); ENDIF
 
 	-- all ok
 	RETURN (CFG_OK)

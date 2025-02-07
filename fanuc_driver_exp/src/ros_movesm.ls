@@ -46,7 +46,7 @@ CONTROL_CODE    = 00000000 00000000;
     :  !move to point ;
     :  R[1:adj nr of pts] = R[2:nr of pts] - 1 ;
     :  FOR R[3:iterator]=0 TO R[1:adj nur of pts] ;
-    :   R[4:curr pr] = R[1:adj nr of pts] + R[6:first pr] ;
+    :   R[4:curr pr] = R[3:iterator] + R[6:first pr] ;
     :   J PR[R[4:curr pr]] 100% CNT 75 ;
     :   IF R[5:ros skip]<>0, JMP LBL[20] ;
     :  ENDFOR ;

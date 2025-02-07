@@ -193,8 +193,6 @@ BEGIN
 		RETURN
 	ENDIF
 
-	MSG_DISCO("S4:", 0)
-
 
 	-- enable log output
 	IF (cfg_.um_clear) THEN log_clear; ENDIF
@@ -306,11 +304,16 @@ CONST
 VAR
 	stat__       : INTEGER
 	req_len__    : INTEGER
+	nnp_sli		 : INTEGER -- iterations since points were pushed
+	k 			 : INTEGER
+	list_size    : INTEGER
 BEGIN
 	-- init 'thread' local
 	stat__       = 0
 
 	outs_msgs_  = 0
+
+	nnp_sli = 0
 
 
 	-- init msg instance and msg list
@@ -387,8 +390,10 @@ BEGIN
 
 
 		-- finally add new traj pt to list
+		log_info_a(LOG_PFIX + 'adding new point:', msg000B_.sequence)
 		sm000Bl_apnd(sm000B_lst_, msg000B_)
 		outs_msgs_ = outs_msgs_ + 1
+		log_info_a(LOG_PFIX + 'list length:', sm000Bl_size(sm000B_lst_))
 
 
 	-- 'continue without a new message'
@@ -434,8 +439,27 @@ BEGIN
 
 		-- .. and try pushing the oldest traj pt to the TP side, but do so
 		-- without blocking (we'll try again next iter)
-		stat__ = push_pt_(sm000B_lst_, NO_BLOCK, cfg, grp_nfo)
-
+		list_size = sm000Bl_size(sm000B_lst_)
+		IF (list_size >= cfg.trjpt_buf_sz) OR (nnp_sli>=cfg.trjpt_buf_sz) THEN
+			stat__ = push_pt_(sm000B_lst_, NO_BLOCK, cfg, grp_nfo)
+			--stat__ = push_pt_(sm000B_lst_, FALSE, cfg, grp_nfo)
+			IF (stat__ <> 0) THEN
+				log_error_a(LOG_PFIX + 'error pushing pts: ', stat__)
+			ELSE
+				log_info_a(LOG_PFIX + 'pushed pts:', list_size)
+				-- for loop that only removes points that can be executed from list trjpt_buf_sz max
+				IF list_size >= cfg.trjpt_buf_sz THEN
+					FOR k=1 TO cfg.trjpt_buf_sz DO
+						sm000Bl_rmov(sm000B_lst_, 1)
+					ENDFOR
+				ELSE
+					sm000Bl_cler(sm000B_lst_)
+				ENDIF
+				nnp_sli = 0
+			ENDIF
+		ELSE
+			nnp_sli = nnp_sli + 1
+		ENDIF
 		-- if TP side was busy, try again later
 		-- TODO: add 'nodelay' lbl to skip DELAY
 		IF (-stat__ = EWOULDBLOCK) THEN GOTO lbl_cont1; ENDIF
@@ -447,11 +471,10 @@ BEGIN
 		ENDIF
 
 		-- TODO: debug only
-		log_info_a(LOG_PFIX + 'pushed pts:', sm000Bl_size(sm000B_lst_))
 
 		-- push successfull, remove
 		-- sm000Bl_rmov(sm000B_lst_, HEAD_OF_LIST)
-		sm000Bl_cler(sm000B_lst_)
+		
 		-- outs_msgs_ = 0
 
 
@@ -724,6 +747,7 @@ VAR
 	nr_of_pts	 : INTEGER
 	i 			 : INTEGER
 	msg			 : sm000B_t
+	curr_pr		 : INTEGER
 BEGIN
 	-- if TP has not signalled 'ready' and we can't block, return
 	IF (no_block AND (FLG[cfg.f_msm_rdy] = OFF)) THEN
@@ -733,6 +757,7 @@ BEGIN
 	nr_of_pts = sm000Bl_size(pt_list)
 	WHILE (i<=nr_of_pts) DO
 		msg = pt_list[i]
+		log_info_a(LOG_PFIX + 'writing p', i)
 		-- map ROS velocity to Fanuc joint vel
 		vel_perc__ = ROUND(msg.velocity * 1e2)
 		IF (vel_perc__ > 100) THEN vel_perc__ = 100; ENDIF
@@ -748,14 +773,14 @@ BEGIN
 		-- allowed to block (if not, then we can only get here if 'rdy'
 		-- is already 'ON' and we will not block here)
 		WAIT FOR (FLG[cfg.f_msm_rdy] = ON)
-
+		curr_pr = cfg.first_pr + i - 1
+		log_info_a(LOG_PFIX + 'writing pr', curr_pr)
 		-- set target joint pos
-		SET_JPOS_REG(cfg.r_first_pr -1 + i, jpos__, stat__)
+		SET_JPOS_REG(curr_pr, jpos__, stat__)
 		IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
-
 		i = i + 1
 	ENDWHILE
-
+	log_info(LOG_PFIX + 'Setting int regs')
 	SET_INT_REG(cfg.r_nr_of_pts, nr_of_pts, stat__)
 	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
 

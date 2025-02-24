@@ -60,26 +60,31 @@ CONST
 	TAG_NR       =    4  -- Server tag
 	TCP_PORT     =    SM_SP_MOTION
 
-	MOVE_CNT     =   50  -- CNT value to use with ros_movesm
-
 	LOOP_HZ      =   125  -- Main loop freq (Hz).On 12ms ITP controllers
 	                     -- ROS_TRAJ will run at 83 Hz (GH #203).
 
 	MOT_SKIP_SIG =    1  -- value to write to SKIP CONDITION register to signal
 	                     -- motion abort to TP side
 
-	BUF_THRSHLD  =    6  -- desired nr of TRAJ_PTs in buffer
+	NW_PT_BUF_SZ  =    6  -- desired nr of TRAJ_PTs in buffer
 
 
 	-- ros_movesm interface defaults:
-	R_SKPSIG_IDX =    5  -- integer register: SKIP CONDITION register
+	R_SKPSIG_IDX =    35  -- integer register: SKIP CONDITION register
 
-	RI_MSM_RDY   =    1  -- ready signal flag
-	RI_MSM_DRDY  =    2  -- data ready signal flag
+	PT_BUFF_SIZE = 10 -- TWO BUFFERS! DOUBLE THE AMOUNT OF PRs REQUIRED
+	F_BUF1_WRDY = 1   -- nr of flag specifying if buffer1 can be written
+	F_BUF1_MRDY = 2   -- nr of flag specifying if buffer1 is used by movement code
+	F_BUF2_WRDY = 3   -- nr of flag specifying if buffer2 can be written
+	F_BUF2_MRDY = 4   -- nr of flag specifying if buffer2 is used by movement code
+	FIRST_PR_B1  = 10
+	FIRST_PR_B2  = 20
+	R_PTS_NW_BUF = 30
+	R_FRST_PR_B1 = 31
+	R_FRST_PR_B2 = 32
+	R_BUFF1_PTS  = 33
+	R_BUFF2_PTS  = 34
 
-	FIRST_PR	 = 60
-	R_FIRST_PR   = 6
-	R_NR_OF_PTS  = 2
 
 
 
@@ -123,12 +128,6 @@ BEGIN
 
 	-- set all settings to their defaults
 
-	SET_VAR(0, PROG_NAME, 'cfg_.f_msm_drdy', RI_MSM_DRDY, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.f_msm_rdy', RI_MSM_RDY, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
 	SET_VAR(0, PROG_NAME, 'cfg_.loop_hz', LOOP_HZ, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
@@ -147,19 +146,46 @@ BEGIN
 	SET_VAR(0, PROG_NAME, 'cfg_.tp_val_trstp', MOT_SKIP_SIG, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-	SET_VAR(0, PROG_NAME, 'cfg_.trjpt_buf_sz', BUF_THRSHLD, stat_)
+	SET_VAR(0, PROG_NAME, 'cfg_.nw_pt_buf_sz', NW_PT_BUF_SZ, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.um_clear', TRUE, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-	SET_VAR(0, PROG_NAME, 'cfg_.first_pr', FIRST_PR, stat_)
+	SET_VAR(0, PROG_NAME, 'cfg_.pt_buff_size', PT_BUFF_SIZE, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-	SET_VAR(0, PROG_NAME, 'cfg_.r_first_pr', R_FIRST_PR, stat_)
+	SET_VAR(0, PROG_NAME, 'cfg_.f_buf1_wrdy', F_BUF1_WRDY, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-	SET_VAR(0, PROG_NAME, 'cfg_.r_nr_of_pts', R_NR_OF_PTS, stat_)
+	SET_VAR(0, PROG_NAME, 'cfg_.f_buf1_mrdy', F_BUF1_MRDY, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.f_buf2_wrdy', F_BUF2_WRDY, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.f_buf2_mrdy', F_BUF2_MRDY, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.first_pr_b1', FIRST_PR_B1, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.first_pr_b2', FIRST_PR_B2, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+	
+	SET_VAR(0, PROG_NAME, 'cfg_.r_frst_pr_b1', R_FRST_PR_B1, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_frst_pr_b2', R_FRST_PR_B2, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_buff1_pts', R_BUFF1_PTS, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_buff2_pts', R_BUFF2_PTS, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_pts_nw_buf', R_PTS_NW_BUF, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 END rtraj_cfg

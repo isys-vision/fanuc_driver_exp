@@ -198,6 +198,9 @@ BEGIN
 	curr_buffer  = 1
 	buff1_pts    = 0
 	buff2_pts    = 0
+	
+	FLG[cfg_.f_buf1_wrdy]=FALSE
+	FLG[cfg_.f_buf2_wrdy]=FALSE
 
 	-- check config
 	stat_ = check_cfg_(cfg_)
@@ -352,6 +355,11 @@ BEGIN
 	FLG[cfg_.f_buf1_wrdy]=FALSE
 	FLG[cfg_.f_buf2_wrdy]=FALSE
 
+	curr_buffer = 2 
+	set_buf_pts(0)
+	curr_buffer = 1
+	set_buf_pts(0)
+
 
 	-- service connected client
 	WHILE (NOT shutdwn_req_) DO
@@ -411,19 +419,25 @@ BEGIN
 			-- hndlr 'thread'
 			IF (stat__ <> 0) THEN GOTO lbl_break1; ENDIF
 
-
 			-- handled msg with special sequence nr
 			GOTO lbl_cont1
 		ENDIF
 
-		--IF(msg000B_.sequence = 0) THEN
+		IF(msg000B_.sequence = 0) THEN
 			--sm000Bl_cler(sm000B_lst_)
-		--	pt_counter = 0
-		--	curr_buffer = 2 
-		--	set_buf_pts(0)
-		--	curr_buffer = 1
-		--	set_buf_pts(0)
-		--ENDIF
+			WAIT FOR FLG[cfg_.f_buf2_mrdy]
+			FLG[cfg_.f_buf2_wrdy]=FALSE
+			WAIT FOR FLG[cfg_.f_buf1_mrdy]
+			FLG[cfg_.f_buf1_wrdy]=FALSE
+			WAIT FOR FLG[cfg_.f_buf2_mrdy]
+			WAIT FOR FLG[cfg_.f_buf1_mrdy]
+			pt_counter = 0
+			curr_buffer = 2 
+			set_buf_pts(0)
+			FLG[cfg_.f_buf2_wrdy]=TRUE
+			curr_buffer = 1
+			set_buf_pts(0)
+		ENDIF
 
 		-- finally add new traj pt to list
 		sm000Bl_apnd(sm000B_lst_, msg000B_)

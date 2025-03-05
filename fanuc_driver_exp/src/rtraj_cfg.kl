@@ -73,10 +73,6 @@ CONST
 	R_SKPSIG_IDX =    35  -- integer register: SKIP CONDITION register
 
 	PT_BUFF_SIZE = 10 -- TWO BUFFERS! DOUBLE THE AMOUNT OF PRs REQUIRED
-	F_BUF1_WRDY = 1   -- nr of flag specifying if buffer1 can be written
-	F_BUF1_MRDY = 2   -- nr of flag specifying if buffer1 is used by movement code
-	F_BUF2_WRDY = 3   -- nr of flag specifying if buffer2 can be written
-	F_BUF2_MRDY = 4   -- nr of flag specifying if buffer2 is used by movement code
 	FIRST_PR_B1  = 10
 	FIRST_PR_B2  = 20
 	R_PTS_NW_BUF = 30
@@ -84,6 +80,9 @@ CONST
 	R_FRST_PR_B2 = 32
 	R_BUFF1_PTS  = 33
 	R_BUFF2_PTS  = 34
+	R_BUFF_R2R   = 39 -- number of register indicating which buffer is ready to read
+	R_BUFF_CON   = 40 -- nr of reg indicating which buffer has been consumed by mvm code
+	R_BUFF_ACT   = 41 -- nr of reg indicating active buffer
 
 
 
@@ -155,18 +154,6 @@ BEGIN
 	SET_VAR(0, PROG_NAME, 'cfg_.pt_buff_size', PT_BUFF_SIZE, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-	SET_VAR(0, PROG_NAME, 'cfg_.f_buf1_wrdy', F_BUF1_WRDY, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.f_buf1_mrdy', F_BUF1_MRDY, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.f_buf2_wrdy', F_BUF2_WRDY, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.f_buf2_mrdy', F_BUF2_MRDY, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
 	SET_VAR(0, PROG_NAME, 'cfg_.first_pr_b1', FIRST_PR_B1, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
@@ -186,6 +173,15 @@ BEGIN
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.r_pts_nw_buf', R_PTS_NW_BUF, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_buff_r2r', R_BUFF_R2R, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_buff_con', R_BUFF_CON, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_buff_act', R_BUFF_ACT, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 END rtraj_cfg

@@ -63,6 +63,8 @@ CONST
 	LOOP_HZ      =  125  -- Main loop freq (Hz). On 12ms ITP controllers
 	                     -- ROS_STATE will run at 83 Hz (GH #203).
 
+	LOG_PFIX     = 'SCFG '
+
 
 
 
@@ -73,6 +75,10 @@ CONST
 --------------------------------------------------------------------------------
 VAR
 	stat_        : INTEGER
+	s_tag_nr_str : STRING[10]
+	s_s_str      : STRING[13]
+	s_var_str    : STRING[26]
+	i			 : INTEGER
 
 
 
@@ -82,7 +88,7 @@ VAR
 -- remote routine prototypes
 --
 --------------------------------------------------------------------------------
-
+%INCLUDE indlog\indlog.klh
 
 
 
@@ -102,7 +108,7 @@ VAR
 --------------------------------------------------------------------------------
 BEGIN
 	stat_ = 0
-
+	i = 0
 	-- set all settings to their defaults
 
 	SET_VAR(0, PROG_NAME, 'cfg_.loop_hz', LOOP_HZ, stat_)
@@ -118,6 +124,35 @@ BEGIN
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.um_clear', TRUE, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+
+
+	-- should we do this in seperate script? The current version makes it necessary to adjust the code and recompile
+	-- if default sever tags cannot be used. We could also add scripts that change the R and PR comments if the config changes
+	-- TODO: add this to io cfg as well once sure about best approach
+
+
+	log_info(LOG_PFIX + 'conf serv tag')
+
+	CNV_INT_STR(TAG_NR, 2, 0, s_tag_nr_str)
+	
+	s_s_str = '$HOSTS_CFG[' + SUB_STR(s_tag_nr_str, 2,1) + ']'
+
+	s_var_str = s_s_str + '.$STATE'
+	SET_VAR(i, '*SYSTEM*', s_var_str, 1, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+	s_var_str = s_s_str + '.$PROTOCOL'
+	SET_VAR(i, '*SYSTEM*', s_var_str, 'SM', stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+	s_var_str = s_s_str + '.$STATE'
+	SET_VAR(i, '*SYSTEM*', s_var_str, 2, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+	SET_VAR(i, '*SYSTEM*', s_var_str, 3, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+    s_var_str = s_s_str + '.$OPER'
+	log_info(LOG_PFIX + s_var_str)
+	SET_VAR(i, '*SYSTEM*', s_var_str, 3, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 END rstate_cfg

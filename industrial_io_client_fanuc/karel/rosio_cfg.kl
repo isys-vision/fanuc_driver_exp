@@ -68,6 +68,10 @@ CONST
 --------------------------------------------------------------------------------
 VAR
 	stat_        : INTEGER
+	s_tag_nr_str   : STRING[10]
+	s_s_str        : STRING[13]
+	s_var_str      : STRING[26]
+	i			   : INTEGER
 
 
 
@@ -111,5 +115,26 @@ BEGIN
 
 	SET_VAR(0, PROG_NAME, 'cfg_.um_clear', FALSE, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	CNV_INT_STR(TAG_NR, 2, 0, s_tag_nr_str)
+	
+	s_s_str = '$HOSTS_CFG[' + SUB_STR(s_tag_nr_str, 2,1) + ']'
+
+	s_var_str = s_s_str + '.$STATE'
+	SET_VAR(i, '*SYSTEM*', s_var_str, 1, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+	s_var_str = s_s_str + '.$PROTOCOL'
+	SET_VAR(i, '*SYSTEM*', s_var_str, 'SM', stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+	s_var_str = s_s_str + '.$STATE'
+	SET_VAR(i, '*SYSTEM*', s_var_str, 2, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+	SET_VAR(i, '*SYSTEM*', s_var_str, 3, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+    s_var_str = s_s_str + '.$OPER'
+	SET_VAR(i, '*SYSTEM*', s_var_str, 3, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	
 
 END rosio_cfg

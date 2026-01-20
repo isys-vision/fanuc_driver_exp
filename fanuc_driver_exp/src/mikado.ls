@@ -19,11 +19,14 @@ TCD:  STACK_SIZE	= 1000,
 DEFAULT_GROUP	= 1,*,*,*,*;
 CONTROL_CODE	= 00000000 00000000;
 /MN
-   1:  RUN ROS_STATE ;
-   2:  ! init user log screen takes some ;
-   3:  WAIT    .30(sec) ;
-   4:  RUN ROS_TRAJ ;
-   5:  RUN ROS_IO ;
-   6:  CALL ROS_MOVESM    ;
+	: ! reset blocker DOs before starting ;
+	: DO[145] = OFF ;
+	: DO[146] = OFF ;
+	: RUN ROS_STATE ;
+	: ! init user log screen takes some ;
+	: WAIT    .30(sec) ;
+	: RUN ROS_TRAJ ;
+	: RUN ROS_IO ;
+	: CALL ROS_MOVESM    ;
 /POS
 /END

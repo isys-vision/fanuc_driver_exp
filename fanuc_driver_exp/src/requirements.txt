@@ -1,0 +1,10 @@
+Fanuc larger_lookahead requirements
+
+1. Fanuc Paket: R648 - User Socket Messaging
+2. $Karel_ENB = 1
+
+Register, IOs, PRS USED IN THIS BRANCH:
+1. R[71:curr pr], R[72:curr pt], R[73:nr pts to drv], R[74:ros skip], R[75:first pr], R[76:buff size]
+2. PR[61] - PR[90]
+3. DO[145:pts2drv block], DO[146:curr_pt block]
+4. S3[state], S4[traj], S5[io]

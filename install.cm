@@ -43,11 +43,11 @@ IF ORDER R632 ! has Karel
   WR_FILE install.log "INFO  | R632 (Karel): OK"
 ELSE
   ! R632 is not strictly needed
-  PRINT "R632 (Karel): missing, continue"
-  WR_FILE install.log "WARN  | R632 (Karel): missing"
+  PRINT "R632 (Karel): not present"
+  WR_FILE install.log "INFO  | R632 (Karel): not present"
 ENDIF
 !
-IF ORDER R648 ! has User Socket Messagin
+IF ORDER R648 ! has User Socket Messaging
   PRINT "R648 (USM): OK"
   WR_FILE install.log "INFO  | R648 (USM): OK"
 ELSE
@@ -71,8 +71,13 @@ PCLOAD product\fdexp\libsm000b.pc
 PCLOAD product\fdexp\libsm000d.pc
 PCLOAD product\fdexp\ros_state.pc
 PCLOAD product\fdexp\ros_traj.pc
-TPLOAD product\fdexp\ros.tp
+DELTP product\fdexp\ros_movesm.tp
 TPLOAD product\fdexp\ros_movesm.tp
+PCLOAD product\fdexp\libind_log.pc
+PCLOAD product\fdexp\libio_pkt.pc
+PCLOAD product\fdexp\ros_io.pc
+DELTP product\fdexp\mikado.tp
+TPLOAD product\fdexp\mikado.tp
 WR_FILE install.log "INFO  | end file copy"
 !
 ! Set sysvars
@@ -98,6 +103,13 @@ PCLOAD product\fdexp\rtraj_cfg.pc
 RUNPC RTRAJ_CFG
 DELPC RTRAJ_CFG
 VRCLEAR RTRAJ_CFG
+!
+PRINT "  ros_io"
+WR_FILE install.log "INFO  | ros_io .."
+PCLOAD product\fdexp\rosio_cfg.pc
+RUNPC ROSIO_CFG
+DELPC ROSIO_CFG
+VRCLEAR ROSIO_CFG
 !
 WR_FILE install.log "INFO  | end config update"
 !

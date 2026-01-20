@@ -72,21 +72,28 @@ TYPE
 	--       to be in-sync with whatever the ROS_MOVESM TP prog is using (flags,
 	--       int registers, pos registers, values, etc).
 	cfg_t = STRUCTURE
-		f_msm_drdy   : INTEGER  -- flag used for 'motion sm data ready' signal
-		f_msm_rdy    : INTEGER  -- flag used for 'motion sm ready' signal
+		pt_buff_size : INTEGER  -- size of buffer
+		r_buff_size  : INTEGER  -- buff size
+		first_pr     : INTEGER  -- first pr of buffer
+		r_first_pr   : INTEGER  -- int reg to store first pr
+		r_pts_to_drv : INTEGER  -- r of nr of pts that still need to be driven
 		loop_hz      : INTEGER  -- main loop update rate (in Hz)
-		move_cnt     : INTEGER  -- CNT to use for each motion instruction
-		pr_move      : INTEGER  -- pos reg to use for next traj pt
-		r_move_cnt   : INTEGER  -- int reg to store traj segment CNT in
 		r_skip_sig   : INTEGER  -- int reg monitored by SKIP CONDITION in TP
-		r_tseg_vel   : INTEGER  -- int reg to store traj segment joint velocity percentage in
 		s_accpt_dlay : INTEGER  -- 'return to sock_accept' delay (ms)
 		s_tag_nr     : INTEGER  -- server TAG number to use
 		s_tcp_nr     : INTEGER  -- TCP port to listen on
 		tp_val_trstp : INTEGER  -- value to set 'r_skip_sig' reg to to communicate traj stop
-		trjpt_buf_sz : INTEGER  -- nr of traj pts to buffer
 		um_clear     : BOOLEAN  -- clear user menu on start
+		curr_pr      : INTEGER  -- curr pr of mvm
+		r_curr_pr    : INTEGER  -- r of curr pr of mvm
+		curr_mv_pt   : INTEGER  -- curr pt of mvm (which pt in buffer)
+		cr_wr_pt     : INTEGER
+		r_curr_pt    : INTEGER  -- r curr pt of mvm
+		do_nr_pts2b  : INTEGER  -- digital output nr pts2drv block
+		do_nr_curpb  : INTEGER  -- digital output nr curr_pt block
 	ENDSTRUCTURE
+
+
 
 
 CONST
@@ -130,6 +137,12 @@ VAR
 	msg000B_               : sm000B_t
 	sm000B_lst_            : sm000B_lst_t   -- list of JOINT_TRAJ_PT msgs
 	outs_msgs_             : INTEGER        -- number of messages received and to ACK
+	pts_to_drv			   : INTEGER
+	i					   : INTEGER
+	i_adj				   : INTEGER
+	i_pr				   : INTEGER
+	pos_start			   : JOINTPOS
+	
 
 
 
@@ -166,7 +179,7 @@ ROUTINE remove_ah_ FROM ros_traj
 ROUTINE install_es_ FROM ros_traj
 ROUTINE remove_es_ FROM ros_traj
 
-ROUTINE push_pt_(msg : sm000B_t; no_block : BOOLEAN; cfg : cfg_t; grp_nfo : grp_info_t) : INTEGER FROM ros_traj
+ROUTINE push_pt_(msg : sm000B_t; no_block : BOOLEAN; cfg : cfg_t; grp_nfo : grp_info_t; pt_counter : INTEGER) : INTEGER FROM ros_traj
 ROUTINE cancl_mtion_(cfg : cfg_t) FROM ros_traj
 ROUTINE rst_cnclmtn_(cfg : cfg_t) FROM ros_traj
 
@@ -179,9 +192,13 @@ ROUTINE rst_cnclmtn_(cfg : cfg_t) FROM ros_traj
 --
 --------------------------------------------------------------------------------
 BEGIN
-	-- init program locals
 	stat_        = 0
 	shutdwn_req_ = FALSE
+
+	pts_to_drv = 0
+	cfg_.curr_mv_pt = 0
+
+	CLOSE FILE sock_fd_
 
 	-- check config
 	stat_ = check_cfg_(cfg_)
@@ -194,6 +211,46 @@ BEGIN
 		RETURN
 	ENDIF
 
+	SET_INT_REG(cfg_.r_pts_to_drv, pts_to_drv, stat_)
+	IF (stat_ <> 0) THEN
+		log_error(LOG_PFIX + 'could not reset pts to drive')
+		POST_ERR(stat_, '', 0, SEV_ABORT)
+	ENDIF
+
+	SET_INT_REG(cfg_.r_curr_pt, cfg_.curr_mv_pt, stat_)
+	IF (stat_ <> 0) THEN
+		log_error(LOG_PFIX + 'could not reset curr mv pt')
+		POST_ERR(stat_, '', 0, SEV_ABORT)
+	ENDIF
+
+	SET_INT_REG(cfg_.r_curr_pr, cfg_.first_pr, stat_)
+	IF (stat_ <> 0) THEN
+		log_error(LOG_PFIX + 'could not reset curr PR')
+		POST_ERR(stat_, '', 0, SEV_ABORT)
+	ENDIF
+
+	SET_INT_REG(cfg_.r_first_pr, cfg_.first_pr, stat_)
+	IF (stat_ <> 0) THEN
+		log_error(LOG_PFIX + 'could set first PR')
+		POST_ERR(stat_, '', 0, SEV_ABORT)
+	ENDIF
+
+	SET_INT_REG(cfg_.r_buff_size, cfg_.pt_buff_size, stat_)
+	IF (stat_ <> 0) THEN
+		log_error(LOG_PFIX + 'could not set buff size')
+		POST_ERR(stat_, '', 0, SEV_ABORT)
+	ENDIF
+
+	pos_start = CURPOS(0,0)
+	i_adj = cfg_.pt_buff_size - 1
+	FOR i=0 TO i_adj DO
+		i_pr = i + cfg_.first_pr
+		SET_JPOS_REG(i_pr, pos_start, stat_)
+		IF (stat_ <> 0) THEN
+			log_error(LOG_PFIX + 'could not set reset PRs')
+			POST_ERR(stat_, '', 0, SEV_ABORT)
+		ENDIF
+	ENDFOR
 
 	-- enable log output
 	IF (cfg_.um_clear) THEN log_clear; ENDIF
@@ -235,9 +292,6 @@ BEGIN
 	stat_ = ssock_dconnf(sock_)
 
 
-	log_info_a(LOG_PFIX + 'buf sz:', cfg_.trjpt_buf_sz)
-	log_info(LOG_PFIX + 'init done')
-
 
 	WHILE (NOT shutdwn_req_) DO
 
@@ -274,6 +328,21 @@ BEGIN
 	lbl_cont0::
 		-- wait for new client
 		log_info(LOG_PFIX + 'disconnected')
+		SET_INT_REG(cfg_.r_pts_to_drv, 0, stat_)
+		IF (stat_ <> 0) THEN
+			log_error(LOG_PFIX + 'could not reset pts to drive')
+			POST_ERR(stat_, '', 0, SEV_ABORT)
+		ENDIF
+		pos_start = CURPOS(0,0)
+		i_adj = cfg_.pt_buff_size - 1
+		FOR i=0 TO i_adj DO
+			i_pr = i + cfg_.first_pr
+			SET_JPOS_REG(i_pr, pos_start, stat_)
+			IF (stat_ <> 0) THEN
+				log_error(LOG_PFIX + 'could not reset PRs')
+				POST_ERR(stat_, '', 0, SEV_ABORT)
+			ENDIF
+		ENDFOR
 
 		-- always delay returning to accept() a bit, to make sure user can
 		-- escape runaway loops
@@ -296,7 +365,9 @@ BEGIN
 END ros_traj
 
 
-
+---------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------
+---------------------------------------------------------------------------------------
 
 ROUTINE hndl_client_
 CONST
@@ -304,22 +375,38 @@ CONST
 	NO_BLOCK     = TRUE
 VAR
 	stat__       : INTEGER
-	req_len__    : INTEGER
+	req_len__    : INTEGER -- the current index to which we want to write -> we need to check that we do not write to a PR that hasnt been driven to yet
+	start_pos    : JOINTPOS
+	iVal         : INTEGER
+	flag_ptv	 : INTEGER
+	flag_cp      : INTEGER
+
 BEGIN
 	-- init 'thread' local
 	stat__       = 0
 
-	outs_msgs_  = 0
-
-
+	outs_msgs_   = 0
+	cfg_.cr_wr_pt  = 0
+ 
 	-- init msg instance and msg list
 	sm000B_ctor(msg000B_)
 	stat__ = sm000Bl_ctor(sm000B_lst_)
 
+	-- TODO: WRITE CURRENT ROBOT POS IN FIRST PR AND SET CR_WR TO 1 -> USE CURPOS COMMAND
+	start_pos = CURPOS(0,0)
+	SET_JPOS_REG(cfg_.first_pr, start_pos, stat__)
+	cfg_.cr_wr_pt = 1
+
+	SET_INT_REG(cfg_.r_pts_to_drv, cfg_.cr_wr_pt, stat_)
+	IF (stat_ <> 0) THEN
+		log_error(LOG_PFIX + 'could not reset pts to drive')
+		POST_ERR(stat_, '', 0, SEV_ABORT)
+	ENDIF
+
+
 
 	-- calc nr of bytes we need for single msg (include pkt_len here)
 	req_len__ = 4 + sm_hdr_len(msg000B_.hdr) + sm000B_len(msg000B_)
-
 
 	-- service connected client
 	WHILE (NOT shutdwn_req_) DO
@@ -327,14 +414,14 @@ BEGIN
 		-- check for new msgs
 		stat__ = has_msgs_(req_len__, fd)
 
-		-- anything negative is an error, so exit
+		-- exit on error
 		IF (stat__ < 0) THEN
 			log_error_a(LOG_PFIX + 'has msg err:', stat__)
 			GOTO lbl_break1
 		ENDIF
 
 		-- if we haven't received anything, don't deserialise
-		IF (stat__ = 0) THEN GOTO lbl_cnomsg; ENDIF
+		IF (stat__ = 0) THEN GOTO lbl_cont1; ENDIF
 
 		-- deserialise
 		stat__ = read_sm000B_(fd, msg000B_)
@@ -354,7 +441,6 @@ BEGIN
 
 		-- check special sequence nrs: if TRAJ STOP, clear list and abort current motion
 		IF (msg000B_.sequence < 0) THEN
-
 			-- we only support TRAJ_STOP special seq nr
 			SELECT (msg000B_.sequence) OF
 				CASE (SM_SEQ_STPRJ):
@@ -379,65 +465,35 @@ BEGIN
 			-- hndlr 'thread'
 			IF (stat__ <> 0) THEN GOTO lbl_break1; ENDIF
 
-
 			-- handled msg with special sequence nr
 			GOTO lbl_cont1
 		ENDIF
+        
+		-- CHECK THAT WE CAN WRITE WITHOUT ISSUES -> IF WE HAVE TO WAIT FOR ROBOT TO MOVE WE BLOCK HERE
+		WAIT FOR NOT DOUT[cfg_.do_nr_pts2b]
+		DOUT[cfg_.do_nr_pts2b] = ON
+		WAIT FOR NOT DOUT[cfg_.do_nr_curpb]
+		DOUT[cfg_.do_nr_curpb] = ON
+		GET_REG(cfg_.r_curr_pt, FALSE, cfg.curr_mv_pt, iVal, stat_)
+		-- THERE SHOULD BE AT LEAST A DISTANCE OF 1 TO PREVENT "RACE CONDITIONS"
+		GET_REG(cfg_.r_pts_to_drv, FALSE, pts_to_drv, iVal, stat_)
+		DOUT[cfg_.do_nr_pts2b] = OFF
+		DOUT[cfg_.do_nr_curpb] = OFF
 
+		WHILE ((cfg.curr_mv_pt - 1 = cfg_.cr_wr_pt) OR (pts_to_drv >=cfg_.pt_buff_size-3))DO
+			DELAY 10
+			WAIT FOR NOT DOUT[cfg_.do_nr_pts2b]
+			DOUT[cfg_.do_nr_pts2b] = ON
+			WAIT FOR NOT DOUT[cfg_.do_nr_curpb]
+			DOUT[cfg_.do_nr_curpb] = ON
+			GET_REG(cfg_.r_curr_pt, FALSE, cfg.curr_mv_pt, iVal, stat_)
+			GET_REG(cfg_.r_pts_to_drv, FALSE, pts_to_drv, iVal, stat_)
+			DOUT[cfg_.do_nr_pts2b] = OFF
+			DOUT[cfg_.do_nr_curpb] = OFF
+		ENDWHILE
 
-		-- finally add new traj pt to list
-		sm000Bl_apnd(sm000B_lst_, msg000B_)
-		outs_msgs_ = outs_msgs_ + 1
-
-
-	-- 'continue without a new message'
-	lbl_cnomsg::
-
-		-- if len(buffer) < threshold, request next one (ie: ACK)
-		IF (sm000Bl_size(sm000B_lst_) < cfg.trjpt_buf_sz) AND (outs_msgs_ > 0) THEN
-
-			-- TODO: debug only
-			log_info_a(LOG_PFIX + 'ack:', msg000B_.sequence)
-
-			-- ACK msg we just received
-			stat__ = ack_svcreq_(msg000B_.sequence, fd)
-			outs_msgs_ = outs_msgs_ - 1
-
-			-- failure to send reply is failure of everything, so exit client
-			-- hndlr 'thread'
-			IF (stat__ <> 0) THEN GOTO lbl_break1; ENDIF
-		ENDIF
-
-
-		-- if we don't have any outstanding traj pts, skip the rest
-		IF (sm000Bl_mpty(sm000B_lst_)) THEN GOTO lbl_cont1; ENDIF
-
-
-		-- TODO: check whether we are already at destination. If so: skip
-		--       traj pt
-		--IF (sm000B_lst_[HEAD_OF_LIST].sequence = 0) THEN
-		--	sm000Bl_rmov(sm000B_lst_, HEAD_OF_LIST)
-		--	GOTO lbl_cont1
-		--ENDIF
-
-
-		-- if we get to this point, we know:
-		--   a) we have pts in the buffer
-		--   b) we are actually allowed to 'execute' those motions (as TRAJ
-		--      STOPs are handled earlier in this function, and if there was
-		--      a TRAJ STOP request, the buffer would be empty so we'd never
-		--      get to this point)
-
-		-- so make sure the 'motion cancel' is no longer active ..
-		rst_cnclmtn_(cfg)
-
-		-- .. and try pushing the oldest traj pt to the TP side, but do so
-		-- without blocking (we'll try again next iter)
-		stat__ = push_pt_(sm000B_lst_[HEAD_OF_LIST], NO_BLOCK, cfg, grp_nfo)
-
-		-- if TP side was busy, try again later
-		-- TODO: add 'nodelay' lbl to skip DELAY
-		IF (-stat__ = EWOULDBLOCK) THEN GOTO lbl_cont1; ENDIF
+		-- push pt
+		stat__ = push_pt_(msg000B_, NO_BLOCK, cfg, grp_nfo, cfg_.cr_wr_pt)
 
 		-- if there was some error, 'handle' it
 		IF (stat__ <> 0) THEN
@@ -445,19 +501,38 @@ BEGIN
 			GOTO lbl_break1
 		ENDIF
 
-		-- TODO: debug only
-		log_info_a(LOG_PFIX + 'pushed:', sm000B_lst_[HEAD_OF_LIST].sequence)
+		log_info_a(LOG_PFIX + 'pushed:', msg000B_.sequence)
+		-- increase pt count of currently used buffer
+		cfg_.cr_wr_pt = cfg_.cr_wr_pt + 1
+		IF (cfg_.cr_wr_pt >= cfg_.pt_buff_size) THEN
+			cfg_.cr_wr_pt = 0
+		ENDIF
+		WAIT FOR NOT DOUT[cfg_.do_nr_pts2b]
+		DOUT[cfg_.do_nr_pts2b] = ON
+		--SET_INT_REG(36, cfg_.cr_wr_pt, stat__)
+		GET_REG(cfg_.r_pts_to_drv, FALSE, pts_to_drv, iVal, stat_)
+		pts_to_drv = pts_to_drv + 1
+		SET_INT_REG(cfg_.r_pts_to_drv, pts_to_drv, stat__)
+		DOUT[cfg_.do_nr_pts2b] = OFF
 
-		-- push successfull, remove
-		sm000Bl_rmov(sm000B_lst_, HEAD_OF_LIST)
+		-- ack recieved point
+		stat__ = ack_svcreq_(msg000B_.sequence, fd)
 
+		-- failure to send reply is failure of everything, so exit client
+		-- hndlr 'thread'
+		IF (stat__ <> 0) THEN GOTO lbl_break1; ENDIF
 
-		-- sleep a little
+		-- make sure the 'motion cancel' is no longer active ..
+		rst_cnclmtn_(cfg)
+
+		GOTO lbl_cont_ns
+
 	lbl_cont1::
 		DELAY (sleep_time_)
 
+	lbl_cont_ns::
+		-- continue without delay
 
-	-- /WHILE (NOT shutdwn_req_)
 	ENDWHILE
 
 lbl_break1::
@@ -573,27 +648,33 @@ END nack_svcreq_
 
 
 ROUTINE check_cfg_
+VAR
+	diff : INTEGER
 BEGIN
 	-- make sure config has been setup
-	IF (UNINIT(cfg.f_msm_drdy  )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.f_msm_rdy   )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.loop_hz     )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.move_cnt    )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.pr_move     )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.r_move_cnt  )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.r_skip_sig  )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.r_tseg_vel  )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.s_accpt_dlay)) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.s_tag_nr    )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.s_tcp_nr    )) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.tp_val_trstp)) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.trjpt_buf_sz)) THEN RETURN (CFG_NOTDONE); ENDIF
-	IF (UNINIT(cfg.um_clear    )) THEN RETURN (CFG_NOTDONE); ENDIF
+
+	IF (UNINIT(cfg.pt_buff_size)) THEN RETURN ( -1); ENDIF
+	IF (UNINIT(cfg.first_pr    )) THEN RETURN ( -2); ENDIF
+	IF (UNINIT(cfg.r_buff_size )) THEN RETURN ( -3); ENDIF
+	IF (UNINIT(cfg.r_first_pr  )) THEN RETURN ( -4); ENDIF
+	IF (UNINIT(cfg.r_pts_to_drv)) THEN RETURN ( -8); ENDIF
+	IF (UNINIT(cfg.loop_hz     )) THEN RETURN (-10); ENDIF
+	IF (UNINIT(cfg.r_skip_sig  )) THEN RETURN (-11); ENDIF
+	IF (UNINIT(cfg.s_accpt_dlay)) THEN RETURN (-12); ENDIF
+	IF (UNINIT(cfg.s_tag_nr    )) THEN RETURN (-13); ENDIF
+	IF (UNINIT(cfg.s_tcp_nr    )) THEN RETURN (-14); ENDIF
+	IF (UNINIT(cfg.tp_val_trstp)) THEN RETURN (-15); ENDIF
+	IF (UNINIT(cfg.um_clear    )) THEN RETURN (-17); ENDIF
+	IF (UNINIT(cfg.r_curr_pr   )) THEN RETURN (-19); ENDIF
+	IF (UNINIT(cfg.r_curr_pt   )) THEN RETURN (-21); ENDIF
+	IF (UNINIT(cfg.do_nr_pts2b )) THEN RETURN (-22); ENDIF
+	IF (UNINIT(cfg.do_nr_curpb )) THEN RETURN (-23); ENDIF
+
+	
 
 	-- all ok
 	RETURN (CFG_OK)
 END check_cfg_
-
 
 
 
@@ -719,48 +800,23 @@ VAR
 	stat__       : INTEGER
 	vel_perc__   : INTEGER
 	jpos__       : JOINTPOS
+	curr_pr      : INTEGER
+	curr_pt_arr  : ARRAY[9] OF REAL
+	i            : INTEGER
+	is_equal     : BOOLEAN
 BEGIN
-	-- if TP has not signalled 'ready' and we can't block, return
-	IF (no_block AND (FLG[cfg.f_msm_rdy] = OFF)) THEN
-		RETURN (-EWOULDBLOCK)
-	ENDIF
-
-	-- map ROS velocity to Fanuc joint vel
-	vel_perc__ = ROUND(msg.velocity * 1e2)
-	IF (vel_perc__ > 100) THEN vel_perc__ = 100; ENDIF
-	IF (vel_perc__ <   1) THEN vel_perc__ =   1; ENDIF
-
 	-- TODO: add multi-group support
-
 	-- convert ROS traj pt to Fanuc 'joint position'
 	stat__ = jdta_to_jpos(msg.joint_data, grp_nfo, jpos__)
 	IF (stat__ <> 0) THEN RETURN (-ABS(stat__)); ENDIF
+	CNV_JPOS_REL(jpos__, curr_pt_arr, stat__)
 
-	-- check again here, as caller could have specified that we are
-	-- allowed to block (if not, then we can only get here if 'rdy'
-	-- is already 'ON' and we will not block here)
-	WAIT FOR (FLG[cfg.f_msm_rdy] = ON)
+	curr_pr = cfg_.first_pr + pt_counter
 
 	-- set target joint pos
-	SET_JPOS_REG(cfg.pr_move, jpos__, stat__)
+	SET_JPOS_REG(curr_pr, jpos__, stat__)
 	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
-
-	-- set traj segment velocity, percentage of max joint vel
-	SET_INT_REG(cfg.r_tseg_vel, vel_perc__, stat__)
-	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
-
-	-- set motion termination (from config)
-	SET_INT_REG(cfg.r_move_cnt, cfg.move_cnt, stat__)
-	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
-
-	-- signal new pt available
-	FLG[cfg.f_msm_drdy] = ON
-
-	-- NOTE: we don't wait for "FLG[cfg.f_msm_drdy] = OFF" here, as future
-	--       calls to push_pt_(..) will check status of TP side before
-	--       continuing anyway
-
-	-- done
+	
 	RETURN (0)
 END push_pt_
 

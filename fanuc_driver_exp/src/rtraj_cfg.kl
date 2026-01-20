@@ -60,26 +60,23 @@ CONST
 	TAG_NR       =    4  -- Server tag
 	TCP_PORT     = SM_SP_MOTION
 
-	MOVE_CNT     =   50  -- CNT value to use with ros_movesm
-
 	LOOP_HZ      =  125  -- Main loop freq (Hz).On 12ms ITP controllers
 	                     -- ROS_TRAJ will run at 83 Hz (GH #203).
 
 	MOT_SKIP_SIG =    1  -- value to write to SKIP CONDITION register to signal
 	                     -- motion abort to TP side
 
-	BUF_THRSHLD  =    6  -- desired nr of TRAJ_PTs in buffer
-
-
-	-- ros_movesm interface defaults:
-	PR_MOVE_IDX  =    1  -- position register for current point
-
-	R_TSEGV_IDX  =    1  -- integer register: traj segment velocity (in %)
-	R_MOVE_CNT   =    2  -- integer register: motion termination (in %)
-	R_SKPSIG_IDX =    5  -- integer register: SKIP CONDITION register
-
-	RI_MSM_RDY   =    1  -- ready signal flag
-	RI_MSM_DRDY  =    2  -- data ready signal flag
+	pt_buff_size = 30  -- size of buffer
+	r_buff_size  = 76  -- buff size
+	first_pr     = 61  -- first pr of buffer
+	r_first_pr   = 75  -- int reg to store first pr
+	r_pts_to_drv = 73  -- r of nr of pts that still need to be driven
+	r_skip_sig   = 74  -- int reg monitored by SKIP CONDITION in TP
+	r_curr_pr    = 71  -- r of curr pr of mvm
+	r_curr_pt    = 72  -- r curr pt of mvm
+	do_nr_pts2b  = 145 -- do for pts2drv block
+	do_nr_curpb  = 146 -- do for curr_pt block
+	LOG_PFIX     = 'TCFG '
 
 
 
@@ -91,6 +88,10 @@ CONST
 --------------------------------------------------------------------------------
 VAR
 	stat_        : INTEGER
+	s_tag_nr_str : STRING[10]
+	s_s_str      : STRING[13]
+	s_var_str    : STRING[26]
+	i			 : INTEGER
 
 
 
@@ -122,29 +123,7 @@ BEGIN
 	stat_ = 0
 
 	-- set all settings to their defaults
-
-	SET_VAR(0, PROG_NAME, 'cfg_.f_msm_drdy', RI_MSM_DRDY, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.f_msm_rdy', RI_MSM_RDY, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
 	SET_VAR(0, PROG_NAME, 'cfg_.loop_hz', LOOP_HZ, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.move_cnt', MOVE_CNT, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.pr_move', PR_MOVE_IDX, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.r_move_cnt', R_MOVE_CNT, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.r_skip_sig', R_SKPSIG_IDX, stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
-	SET_VAR(0, PROG_NAME, 'cfg_.r_tseg_vel', R_TSEGV_IDX, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.s_accpt_dlay', RACCEPT_DLAY, stat_)
@@ -159,10 +138,57 @@ BEGIN
 	SET_VAR(0, PROG_NAME, 'cfg_.tp_val_trstp', MOT_SKIP_SIG, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-	SET_VAR(0, PROG_NAME, 'cfg_.trjpt_buf_sz', BUF_THRSHLD, stat_)
+	SET_VAR(0, PROG_NAME, 'cfg_.um_clear', TRUE, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-	SET_VAR(0, PROG_NAME, 'cfg_.um_clear', TRUE, stat_)
+	-- driver specific
+	SET_VAR(0, PROG_NAME, 'cfg_.pt_buff_size', pt_buff_size, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_buff_size', r_buff_size, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.first_pr', first_pr, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_first_pr', r_first_pr, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_pts_to_drv', r_pts_to_drv, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_skip_sig', r_skip_sig, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_curr_pr', r_curr_pr , stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_curr_pt', r_curr_pt, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.do_nr_pts2b', do_nr_pts2b, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.do_nr_curpb', do_nr_curpb, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	CNV_INT_STR(TAG_NR, 2, 0, s_tag_nr_str)
+	
+	s_s_str = '$HOSTS_CFG[' + SUB_STR(s_tag_nr_str, 2,1) + ']'
+
+	s_var_str = s_s_str + '.$STATE'
+	SET_VAR(i, '*SYSTEM*', s_var_str, 1, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+	s_var_str = s_s_str + '.$PROTOCOL'
+	SET_VAR(i, '*SYSTEM*', s_var_str, 'SM', stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+	s_var_str = s_s_str + '.$STATE'
+	SET_VAR(i, '*SYSTEM*', s_var_str, 2, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+	SET_VAR(i, '*SYSTEM*', s_var_str, 3, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+    s_var_str = s_s_str + '.$OPER'
+	SET_VAR(i, '*SYSTEM*', s_var_str, 3, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 END rtraj_cfg

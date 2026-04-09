@@ -69,6 +69,9 @@ PCLOAD product\fdexp\libsm_hdr.pc
 PCLOAD product\fdexp\libsm000a.pc
 PCLOAD product\fdexp\libsm000b.pc
 PCLOAD product\fdexp\libsm000d.pc
+PCLOAD product\fdexp\libsmfdf0.pc
+PCLOAD product\fdexp\libsmfdf1.pc
+PCLOAD product\fdexp\libsmfdf2.pc
 PCLOAD product\fdexp\ros_state.pc
 PCLOAD product\fdexp\ros_traj.pc
 DELTP product\fdexp\ros_movesm.tp

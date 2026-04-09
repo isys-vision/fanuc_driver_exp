@@ -1,4 +1,3 @@
-
 -- Copyright (c) 2017, TU Delft Robotics Institute
 --
 -- Licensed under the Apache License, Version 2.0 (the "License");
@@ -12,6 +11,7 @@
 -- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 -- See the License for the specific language governing permissions and
 -- limitations under the License.
+
 
 
 PROGRAM ros_state
@@ -42,7 +42,6 @@ PROGRAM ros_state
 
 
 
-
 --------------------------------------------------------------------------------
 --
 -- remote types & constants
@@ -50,12 +49,13 @@ PROGRAM ros_state
 --------------------------------------------------------------------------------
 %INCLUDE rosfanuc\rosfanuc.klt
 %INCLUDE simplemsg\msgs\sm000A.klt
+%INCLUDE mikmsgs\smFDF1.klt
+%INCLUDE mikmsgs\smFDF0.klt
 %INCLUDE simplemsg\msgs\sm000D.klt
 %INCLUDE simplemsg\simplemsg.klt
 %INCLUDE libssock.klt
 %INCLUDE klevkeys.kl
 %INCLUDE kliosop.kl
-
 
 
 
@@ -71,29 +71,26 @@ TYPE
 		s_tag_nr     : INTEGER  -- server TAG number to use
 		s_tcp_nr     : INTEGER  -- TCP port to listen on
 		um_clear     : BOOLEAN  -- clear user menu on start
+		is_debug     : BOOLEAN  -- determines whether to print messages to TP
 	ENDSTRUCTURE
 
 
 CONST
 	LOG_PFIX     = 'RSTA '
-
 	COND_AH      =  186  -- ABORT handler id (randomly chosen, but less
 	                     -- likely to clash than simply '1')
-
 	CFG_OK       =    0  -- config ok
 	CFG_NOTDONE  =   -1  -- configuration not checked: user action required
-
 	FILE_EOF     =  2021 -- FILE-021 End of file
 	FILE_ILL_PRM =  2032 -- FILE-032 Illegal parameter
 	HOST_CTAG_ER = 67144 -- HOST-144 Comm Tag error
 	SEV_ABORT    =    2  -- ABORT severity
-
 	MTION_GRP    =    1  -- motion group we target
 	                     -- TODO: add support for multi-group (GH #9)
 
 
 CONST
-	                     -- '$MOR.$safety_stat', R-J3iC Software Reference Manual, 
+	                     -- '$MOR.$safety_stat', R-J3iC Software Reference Manual,
 	                     --   MARACSSRF03061E Rev A
 	MFS_EMGOP    =    1  -- E-Stop SOP
 	MFS_EMGTP    =    2  -- E-Stop TP
@@ -109,7 +106,6 @@ CONST
 
 
 
-
 --------------------------------------------------------------------------------
 --
 -- local variables
@@ -117,19 +113,19 @@ CONST
 --------------------------------------------------------------------------------
 VAR
 	cfg_         IN SHADOW : cfg_t          -- configuration
-
 	stat_                  : INTEGER
-	sleep_time_            : INTEGER
+	t_dly_stat             : INTEGER -- TODO: CHANGE SLEEPTIME BASED ON ROS_TRAJ -> REDUCE DURING TRAJ TRANSMISSION AND INCREASE DURING MOVEMENT
 	shutdwn_req_           : BOOLEAN        -- program abort requested status
-
 	sock_                  : ssock_t        -- server socket instance
 	sock_fd_               : FILE           -- file descriptor has to be declared here
-
 	grp_nfo_               : grp_info_t     -- motion group info cache
-
-	msg000A_               : sm000A_t
+	msgFDF1_               : smFDF1_t
+	conn_info              : smFDF0_t
 	msg000D_               : sm000D_t
-
+	is_conn_info           : BOOLEAN
+	cninf_len__            : INTEGER
+	strt_msgs              : INTEGER
+	t_intr_wait            : INTEGER  -- time slice for intr delay
 
 
 
@@ -140,12 +136,13 @@ VAR
 --------------------------------------------------------------------------------
 %INCLUDE rosfanuc\rosfanuc.klh
 %INCLUDE simplemsg\msgs\sm000A.klh
+%INCLUDE mikmsgs\smFDF1.klh
+%INCLUDE mikmsgs\smFDF0.klh
 %INCLUDE simplemsg\msgs\sm000D.klh
 %INCLUDE simplemsg\sm_hdr.klh
 %INCLUDE indlog\indlog.klh
 %INCLUDE libssock.klh
 %INCLUDE klrdutil.kl
-
 
 
 
@@ -155,17 +152,20 @@ VAR
 --
 --------------------------------------------------------------------------------
 ROUTINE hndl_client_(fd : FILE; cfg : cfg_t) : INTEGER FROM ros_state
-
-ROUTINE upd_sm000A_(msg : sm000A_t; grp_nfo : grp_info_t) : INTEGER FROM ros_state
+ROUTINE upd_smFDF1_(msg : smFDF1_t; grp_nfo : grp_info_t; conn_info : smFDF0_t) : INTEGER FROM ros_state
 ROUTINE upd_sm000D_(msg : sm000D_t) FROM ros_state
-
-ROUTINE writ_sm000A_(msg : sm000A_t; fd : FILE) : INTEGER FROM ros_state
+ROUTINE writ_smFDF1_(msg : smFDF1_t; fd : FILE; conn_info : smFDF0_t) : INTEGER FROM ros_state
 ROUTINE writ_sm000D_(msg : sm000D_t; fd : FILE) : INTEGER FROM ros_state
-
+ROUTINE dlog_error_a(msg : STRING; nr : INTEGER) FROM ros_state
+ROUTINE dlog_info_a(msg : STRING; nr : INTEGER) FROM ros_state
+ROUTINE dlog_error(msg : STRING) FROM ros_state
+ROUTINE dlog_info(msg : STRING) FROM ros_state
+ROUTINE has_msgs_(len : INTEGER; fd : FILE) : INTEGER FROM ros_traj
 ROUTINE check_cfg_(cfg : cfg_t) : INTEGER FROM ros_state
 ROUTINE install_ah_ FROM ros_state
+ROUTINE intr_dly_ FROM ros_state
 ROUTINE remove_ah_ FROM ros_state
-
+ROUTINE ack_svcreq_(msg_type : INTEGER; seq : INTEGER; fd : FILE) : INTEGER FROM ros_traj
 
 
 
@@ -175,27 +175,33 @@ ROUTINE remove_ah_ FROM ros_state
 --
 --------------------------------------------------------------------------------
 BEGIN
+	lbl_start::
+		-- dummy label used after unexpected disconnect
 	-- init program locals
 	stat_         = 0
 	shutdwn_req_  = FALSE
+	is_conn_info  = FALSE
+	cninf_len__   = 0
+	IF(UNINIT(cfg_.is_debug)) THEN
+		cfg_.is_debug = TRUE
+	ENDIF
 
 	-- check config
 	stat_ = check_cfg_(cfg_)
 	IF (stat_ <> CFG_OK) THEN
 		log_error_a(LOG_PFIX + 'cfg err:', stat_)
-		log_error(LOG_PFIX + 'check cfg')
 		-- errors with config always force user to log window
 		log_force
 		POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT)
 		RETURN
 	ENDIF
 
-
 	-- enable log output
 	IF (cfg_.um_clear) THEN log_clear; ENDIF
 
 	-- rest of config
-	sleep_time_ = ROUND(1000.0 / cfg_.loop_hz)
+	t_dly_stat = ROUND(1000.0 / cfg_.loop_hz)
+	t_intr_wait = ROUND(1000.0 / cfg_.loop_hz)
 
 	-- cache axis info
 	-- TODO: add multi-group support
@@ -207,10 +213,8 @@ BEGIN
 	ENDIF
 	log_info_a(LOG_PFIX + 'loaded grp:', MTION_GRP)
 
-
 	-- initialise ABORT handler
 	install_ah_
-
 
 	-- init server socket
 	stat_ = ssock_ctor(sock_, cfg_.s_tcp_nr , cfg_.s_tag_nr)
@@ -224,13 +228,9 @@ BEGIN
 		POST_ERR(HOST_CTAG_ER, '', 0, SEV_ABORT)
 	ENDIF
 
-
 	-- make sure socket is closed (don't care about result)
 	stat_ = ssock_dconnf(sock_)
-
-
 	log_info(LOG_PFIX + 'init done')
-
 
 	WHILE (NOT shutdwn_req_) DO
 
@@ -253,6 +253,40 @@ BEGIN
 		-- inform user
 		log_info(LOG_PFIX + 'connected')
 
+		-- init mconn info msg
+		smFDF0_ctor(conn_info)
+
+		-- wait for connection info
+		cninf_len__ = 4 + sm_hdr_len(conn_info.hdr) + smFDF0_len(conn_info)
+
+		dlog_info(LOG_PFIX + 'waiting for conn info')
+		strt_msgs = 0
+		while(is_conn_info = FALSE) DO
+			-- check for new msgs
+			strt_msgs = has_msgs_(cninf_len__, sock_fd_)
+			IF(strt_msgs > 0) THEN
+				READ sock_fd_(stat_)
+				stat_ = sm_hdr_read(conn_info.hdr, sock_fd_)
+				IF (stat_ <> 0) THEN
+					GOTO lbl_break0
+				ENDIF
+				stat_ = smFDF0_read(conn_info, sock_fd_)
+				IF(stat_ <> 0) THEN
+					GOTO lbl_break0
+				ENDIF
+				stat_ = ack_svcreq_(SMFDF0_ID, 0, sock_fd_)
+				IF(stat_ = 0) THEN
+					is_conn_info = TRUE
+				ENDIF
+			ELSE
+				dlog_info(LOG_PFIX + 'no conn_info yet')
+				DELAY(1000)
+			ENDIF
+		ENDWHILE
+
+		dlog_info(LOG_PFIX + 'rcvd conn_info')
+		dlog_info_a(LOG_PFIX + 'Nr state axes: ', conn_info.nr_ax_state)
+
 		-- client connected, 'spin-off' connection handler
 		stat_ = hndl_client_(sock_fd_, cfg_)
 
@@ -263,6 +297,11 @@ BEGIN
 		-- in other cases, exit with forced disconnect
 	lbl_break0::
 		stat_ = ssock_dconn2(sock_, sock_fd_)
+		-- make sure socket is closed (don t care about result)
+		stat_ = ssock_dconnf(sock_)
+		-- disable the ABORT handler
+		remove_ah_
+		GOTO lbl_start
 
 	lbl_cont0::
 		-- wait for new client
@@ -271,10 +310,7 @@ BEGIN
 		-- always delay returning to accept() a bit, to make sure user can
 		-- escape runaway loops
 		DELAY (cfg_.s_accpt_dlay)
-
-	-- /WHILE (NOT shutdwn_req_)
 	ENDWHILE
-
 
 	-- make sure socket is closed (don t care about result)
 	stat_ = ssock_dconnf(sock_)
@@ -288,7 +324,11 @@ END ros_state
 
 
 
-
+--------------------------------------------------------------------------------
+--
+-- Main state update loop
+--
+--------------------------------------------------------------------------------
 ROUTINE hndl_client_
 VAR
 	stat__       : INTEGER
@@ -297,20 +337,19 @@ BEGIN
 	stat__ = 0
 	cntr__ = 0
 
-	sm000A_ctor(msg000A_)
+	smFDF1_ctor(msgFDF1_)
 	sm000D_ctor(msg000D_)
-
 
 	-- service connected client
 	WHILE (NOT shutdwn_req_) DO
 
-		stat__ = upd_sm000A_(msg000A_, grp_nfo_)
+		stat__ = upd_smFDF1_(msgFDF1_, grp_nfo_, conn_info)
 		IF (stat__ <> 0) THEN
 			log_error_a(LOG_PFIX + 'upd A err:', stat__)
 			GOTO lbl_break1
 		ENDIF
 
-		stat__ = writ_sm000A_(msg000A_, sock_fd_)
+		stat__ = writ_smFDF1_(msgFDF1_, sock_fd_, conn_info)
 		IF (stat__ <> 0) THEN
 			IF (stat__ <> FILE_EOF) THEN
 				log_error_a(LOG_PFIX + 'pub A err:', stat__)
@@ -319,9 +358,9 @@ BEGIN
 		ENDIF
 
 		-- hard coded divisor for ROBOT_STATUS: 1/10th of JOINT_POSITION
+		-- if the update rate has been reduced, we send a status update each iteration
 		cntr__ = cntr__ + 1
-		IF (cntr__ > 10) THEN
-
+		IF ((cntr__ > 10) OR (t_dly_stat > 250) ) THEN
 			upd_sm000D_(msg000D_)
 			stat__ = writ_sm000D_(msg000D_, sock_fd_)
 			IF (stat__ <> 0) THEN
@@ -330,13 +369,11 @@ BEGIN
 				ENDIF
 				GOTO lbl_break1
 			ENDIF
-
 			cntr__ = 0
 		ENDIF
+		-- the sleep delay is split into several small delays so that it can be interrupted
+		intr_dly_
 
-		DELAY (sleep_time_)
-
-	-- /WHILE (NOT shutdwn_req_)
 	ENDWHILE
 
 lbl_break1::
@@ -347,8 +384,36 @@ END hndl_client_
 
 
 
+--------------------------------------------------------------------------------
+--
+-- Delay function that splits delay in multiple small delays
+--
+--------------------------------------------------------------------------------
+ROUTINE intr_dly_
+VAR
+	t_waited : INTEGER
+	is_done  : BOOLEAN
+BEGIN
+	t_waited = 0
+	is_done = FALSE
+	WHILE(NOT is_done) DO
+		IF(t_waited >= t_dly_stat) THEN
+			is_done = TRUE
+		ELSE
+			t_waited = t_waited + t_intr_wait
+			DELAY (t_intr_wait)
+		ENDIF
+	ENDWHILE
+END intr_dly_
 
-ROUTINE upd_sm000A_
+
+
+--------------------------------------------------------------------------------
+--
+-- Update and write dynamic joints msg
+--
+--------------------------------------------------------------------------------
+ROUTINE upd_smFDF1_
 VAR
 	stat__       : INTEGER
 	jpos__       : JOINTPOS
@@ -357,14 +422,45 @@ BEGIN
 
 	-- convert Fanuc 'joint position' to ROS traj pos
 	jpos__ = CURJPOS(0, 0, MTION_GRP)
-	stat__ = jpos_to_jdta(jpos__, grp_nfo, msg.joint_data)
+	stat__ = jpos_to_jdta(jpos__, grp_nfo, msg.joint_data, conn_info)
+	IF(conn_info.is_traj_imov) THEN
+		msg.is_moving = FALSE
+		IF ($MOR_GRP[MTION_GRP].$ROB_MOVE) THEN
+			msg.is_moving = TRUE
+		ENDIF
+	ENDIF
 
 	RETURN (-ABS(stat__))
-END upd_sm000A_
+END upd_smFDF1_
+
+
+ROUTINE writ_smFDF1_
+VAR
+	stat__       : INTEGER
+BEGIN
+	stat__ = 0
+
+	WRITE fd(sm_hdr_len(msg.hdr) + smFDF1_len(msg, conn_info))
+	stat__ = IO_STATUS(fd)
+	IF (stat__ <> 0) THEN GOTO lbl_exit2; ENDIF
+
+	stat__ = sm_hdr_wrte(msg.hdr, fd)
+	IF (stat__ <> 0) THEN GOTO lbl_exit2; ENDIF
+
+	stat__ = smFDF1_wrte(msg, fd, conn_info)
+	IF (stat__ <> 0) THEN GOTO lbl_exit2; ENDIF
+
+lbl_exit2::
+	RETURN (-ABS(stat__))
+END writ_smFDF1_
 
 
 
-
+--------------------------------------------------------------------------------
+--
+-- Status aux functions
+--
+--------------------------------------------------------------------------------
 ROUTINE get_err_ : INTEGER
 VAR
 	seq_num__    : INTEGER
@@ -384,8 +480,6 @@ BEGIN
 
 	RETURN (err_code__)
 END get_err_
-
-
 
 
 ROUTINE mot_poss_(msg : sm000D_t; sstat : INTEGER) : BOOLEAN
@@ -417,8 +511,6 @@ BEGIN
 END mot_poss_
 
 
-
-
 ROUTINE is_running_(prog_name : STRING) : BOOLEAN
 VAR
 	stat__       : INTEGER
@@ -432,8 +524,6 @@ BEGIN
 END is_running_
 
 
-
-
 ROUTINE e_stopped_(sstat : INTEGER) : BOOLEAN
 BEGIN
 	RETURN ((sstat AND (MFS_EMGOP OR MFS_EMGTP OR MFS_EMGEX)) <> 0)
@@ -441,7 +531,11 @@ END e_stopped_
 
 
 
-
+--------------------------------------------------------------------------------
+--
+-- Update and write robot status message
+--
+--------------------------------------------------------------------------------
 ROUTINE upd_sm000D_
 VAR
 	sstat__      : INTEGER
@@ -456,10 +550,10 @@ BEGIN
 
 	-- Determine state of E-Stop
 	--
-	-- NOTE: this checks TP E-Stop, Controller Cabinet E-Stop 
+	-- NOTE: this checks TP E-Stop, Controller Cabinet E-Stop
 	--       AND External E-Stop
 	--
-	-- '$MOR.$safety_stat', R-J3iC Software Reference Manual, 
+	-- '$MOR.$safety_stat', R-J3iC Software Reference Manual,
 	-- MARACSSRF03061E Rev A
 	msg.e_stopped = SM_TRI_FALSE
 	IF (e_stopped_(sstat__)) THEN msg.e_stopped = SM_TRI_TRUE; ENDIF
@@ -471,8 +565,8 @@ BEGIN
 
 	-- use state of FAULT LED as fault indicator, and report most recent error.
 	--
-	-- The 'FAULT' signal (OPOUT[21]) is only available when UOP signals have 
-	-- been properly configured, so use the 'FAULT LED' as an indirect 
+	-- The 'FAULT' signal (OPOUT[21]) is only available when UOP signals have
+	-- been properly configured, so use the 'FAULT LED' as an indirect
 	-- indicator.
 	--
 	-- Table 14-2, Karel Reference Manual, MARRC75KR07091E Rev C
@@ -486,12 +580,12 @@ BEGIN
 	ENDIF
 
 	-- Use 'servo_ready' system variable as indicator for 'SYSRDY' (OPOUT[17])
-	-- '$MOR_GRP[n].$servo_ready', R-J3iC Software Reference Manual, 
+	-- '$MOR_GRP[n].$servo_ready', R-J3iC Software Reference Manual,
 	-- MARACSSRF03061E Rev A
 	msg.drvs_pwd   = SM_TRI_FALSE
 	IF ($MOR_GRP[MTION_GRP].$SERVO_READY) THEN msg.drvs_pwd = SM_TRI_TRUE; ENDIF
 
-	-- Derive 'motion possible' from various system variables and in/output 
+	-- Derive 'motion possible' from various system variables and in/output
 	-- signals.
 	msg.mtn_psble = SM_TRI_UNKNW
 	IF (mot_poss_(msg, sstat__)) THEN msg.mtn_psble = SM_TRI_TRUE;
@@ -502,31 +596,6 @@ BEGIN
 		msg.mtn_psble = SM_TRI_FALSE
 	ENDIF
 END upd_sm000D_
-
-
-
-
-ROUTINE writ_sm000A_
-VAR
-	stat__       : INTEGER
-BEGIN
-	stat__ = 0
-
-	WRITE fd(sm_hdr_len(msg.hdr) + sm000A_len(msg))
-	stat__ = IO_STATUS(fd)
-	IF (stat__ <> 0) THEN GOTO lbl_exit2; ENDIF
-
-	stat__ = sm_hdr_wrte(msg.hdr, fd)
-	IF (stat__ <> 0) THEN GOTO lbl_exit2; ENDIF
-
-	stat__ = sm000A_wrte(msg, fd)
-	IF (stat__ <> 0) THEN GOTO lbl_exit2; ENDIF
-
-lbl_exit2::
-	RETURN (-ABS(stat__))
-END writ_sm000A_
-
-
 
 
 ROUTINE writ_sm000D_
@@ -551,7 +620,11 @@ END writ_sm000D_
 
 
 
-
+--------------------------------------------------------------------------------
+--
+-- Check config
+--
+--------------------------------------------------------------------------------
 ROUTINE check_cfg_
 BEGIN
 	-- make sure config has been setup
@@ -567,7 +640,6 @@ END check_cfg_
 
 
 
-
 --------------------------------------------------------------------------------
 --
 -- Application handler for ABORT signals.
@@ -578,7 +650,6 @@ BEGIN
 	shutdwn_req_ = TRUE
 	CANCEL FILE sock_fd_
 END ab_hndlr_
-
 
 
 
@@ -598,6 +669,43 @@ BEGIN
 	ENABLE CONDITION[COND_AH]
 END install_ah_
 
+
+
+--------------------------------------------------------------------------------
+--
+-- LOGGING METHODS
+--
+--------------------------------------------------------------------------------
+ROUTINE dlog_error_a
+BEGIN
+  IF (cfg_.is_debug) THEN
+  	log_error_a(msg, nr)
+  ENDIF
+END dlog_error_a
+
+
+ROUTINE dlog_error
+BEGIN
+  IF (cfg_.is_debug) THEN
+  	log_error(msg)
+  ENDIF
+END dlog_error
+
+
+ROUTINE dlog_info_a
+BEGIN
+  IF (cfg_.is_debug) THEN
+  	log_info_a(msg, nr)
+  ENDIF
+END dlog_info_a
+
+
+ROUTINE dlog_info
+BEGIN
+  IF (cfg_.is_debug) THEN
+  	log_info(msg)
+  ENDIF
+END dlog_info
 
 
 

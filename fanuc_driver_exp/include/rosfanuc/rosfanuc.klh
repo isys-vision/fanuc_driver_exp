@@ -63,12 +63,13 @@ ROUTINE arr_deg2rad(a : ARRAY OF REAL; len : INTEGER) FROM librosfanuc
 --
 -- [in    ]  jpos         : a Fanuc JOINTPOS instance
 -- [in    ]  grp_nfo      : motion group info structure for the targeted group
+-- [in    ]  conn_info    : information about the connection that contains nr of axis to be send/received
 -- [out   ]  joint_data   : real array (10 REALs)
 -- [return]               : < 0 IFF any error was encountered.
 --                            0 IFF 'jpos' could be converted.
 --
 --------------------------------------------------------------------------------
-ROUTINE jpos_to_jdta(jpos : JOINTPOS; grp_nfo : grp_info_t; joint_data : ARRAY OF REAL) : INTEGER FROM librosfanuc
+ROUTINE jpos_to_jdta(jpos : JOINTPOS; grp_nfo : grp_info_t; joint_data : ARRAY OF REAL; conn_info : smFDF0_t) : INTEGER FROM librosfanuc
 
 
 
@@ -81,12 +82,13 @@ ROUTINE jpos_to_jdta(jpos : JOINTPOS; grp_nfo : grp_info_t; joint_data : ARRAY O
 --
 -- [in    ]  joint_data   : real array (10 REALs)
 -- [in    ]  grp_nfo      : motion group info structure for the targeted group
+-- [in    ]  conn_info    : information about the connection that contains nr of axis to be send/received
 -- [out   ]  jpos         : a Fanuc JOINTPOS instance
 -- [return]               : < 0 IFF any error was encountered.
 --                            0 IFF 'joint_data' could be converted.
 --
 --------------------------------------------------------------------------------
-ROUTINE jdta_to_jpos(joint_data : ARRAY OF REAL; grp_nfo : grp_info_t; jpos : JOINTPOS) : INTEGER FROM librosfanuc
+ROUTINE jdta_to_jpos(joint_data : ARRAY OF REAL; grp_nfo : grp_info_t; jpos : JOINTPOS; conn_info : smFDF0_t) : INTEGER FROM librosfanuc
 
 
 

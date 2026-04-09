@@ -72,11 +72,11 @@ CONST
 	r_first_pr   = 75  -- int reg to store first pr
 	r_pts_to_drv = 73  -- r of nr of pts that still need to be driven
 	r_skip_sig   = 74  -- int reg monitored by SKIP CONDITION in TP
-	r_curr_pr    = 71  -- r of curr pr of mvm
 	r_curr_pt    = 72  -- r curr pt of mvm
-	do_nr_pts2b  = 145 -- do for pts2drv block
-	do_nr_curpb  = 146 -- do for curr_pt block
+	do_nr_lstba  = 145 -- do for is last batch
+	do_nr_iswrt  = 146 -- do for is write allowed
 	LOG_PFIX     = 'TCFG '
+	is_debug     = TRUE
 
 
 
@@ -160,20 +160,20 @@ BEGIN
 	SET_VAR(0, PROG_NAME, 'cfg_.r_skip_sig', r_skip_sig, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-	SET_VAR(0, PROG_NAME, 'cfg_.r_curr_pr', r_curr_pr , stat_)
-	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
-
 	SET_VAR(0, PROG_NAME, 'cfg_.r_curr_pt', r_curr_pt, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-	SET_VAR(0, PROG_NAME, 'cfg_.do_nr_pts2b', do_nr_pts2b, stat_)
+	SET_VAR(0, PROG_NAME, 'cfg_.do_nr_lstba', do_nr_lstba, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-	SET_VAR(0, PROG_NAME, 'cfg_.do_nr_curpb', do_nr_curpb, stat_)
+	SET_VAR(0, PROG_NAME, 'cfg_.do_nr_iswrt', do_nr_iswrt, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.is_debug', is_debug, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	CNV_INT_STR(TAG_NR, 2, 0, s_tag_nr_str)
-	
+
 	s_s_str = '$HOSTS_CFG[' + SUB_STR(s_tag_nr_str, 2,1) + ']'
 
 	s_var_str = s_s_str + '.$STATE'

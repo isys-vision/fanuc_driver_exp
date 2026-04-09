@@ -126,17 +126,10 @@ BEGIN
 	SET_VAR(0, PROG_NAME, 'cfg_.um_clear', TRUE, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
-
-
-	-- should we do this in seperate script? The current version makes it necessary to adjust the code and recompile
-	-- if default sever tags cannot be used. We could also add scripts that change the R and PR comments if the config changes
-	-- TODO: add this to io cfg as well once sure about best approach
-
-
 	log_info(LOG_PFIX + 'conf serv tag')
 
 	CNV_INT_STR(TAG_NR, 2, 0, s_tag_nr_str)
-	
+
 	s_s_str = '$HOSTS_CFG[' + SUB_STR(s_tag_nr_str, 2,1) + ']'
 
 	s_var_str = s_s_str + '.$STATE'

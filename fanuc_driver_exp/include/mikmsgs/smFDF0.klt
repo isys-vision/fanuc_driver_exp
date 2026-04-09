@@ -1,0 +1,60 @@
+-- Copyright (c) 2016, TU Delft Robotics Institute
+--
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+--
+--     http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+----------------------------------------------------------------------------------------------------------------------------
+-- This custom simple message definition is based on libsimplemsg by author G.A. vd. Hoorn (TU Delft Robotics Institute) --
+----------------------------------------------------------------------------------------------------------------------------
+
+%IFNDEF SIMPLEMSG_MSGS_SMFDF0_KLT__
+%DEFINE SIMPLEMSG_MSGS_SMFDF0_KLT__
+
+
+--------------------------------------------------------------------------------
+--
+-- Simple Message Connection Info (libsmFDF0) shared type
+-- and constant decls
+--
+--------------------------------------------------------------------------------
+
+
+%INCLUDE simplemsg\simplemsg.klt
+%INCLUDE simplemsg\sm_hdr.klt
+
+
+TYPE
+	smFDF0_t FROM libsmFDF0 = STRUCTURE
+		hdr          : sm_hdr_t
+		nr_ax_traj   : INTEGER -- nr axis trajectory
+		nr_ax_state  : INTEGER -- nr axis state
+		nr_eax_traj  : INTEGER -- nr external axis trajectory
+		nr_eax_state : INTEGER -- nr external axis state
+		is_traj_rad  : BOOLEAN -- is trajectory in radian
+		is_state_rad : BOOLEAN -- is state in radian
+		is_traj_vel  : BOOLEAN -- do traj pts contain velocity
+		is_traj_dur  : BOOLEAN -- do traj pts contain duration
+		is_traj_imov : BOOLEAN -- do joint state msgs contain is_moving
+		traj_msg_len : INTEGER -- number of bytes of the trajectory msg
+	ENDSTRUCTURE
+
+
+	-- convenience: 'List ITem type' and 'LiST type'
+	smFDF0_lit_t FROM libsmFDF0 = smFDF0_t
+	smFDF0_lst_t FROM libsmFDF0 = PATH NODEDATA = smFDF0_lit_t
+
+
+CONST
+	SMFDF0_ID    = 65008
+	SMFDF0_NAME  = 'Connection Info'
+
+
+%ENDIF -- SIMPLEMSG_MSGS_SMFDF0_KLT__

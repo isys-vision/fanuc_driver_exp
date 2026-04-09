@@ -1,0 +1,129 @@
+-- Copyright (c) 2016, TU Delft Robotics Institute
+--
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+--
+--     http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+----------------------------------------------------------------------------------------------------------------------------
+-- This custom simple message definition is based on libsimplemsg by author G.A. vd. Hoorn (TU Delft Robotics Institute) --
+----------------------------------------------------------------------------------------------------------------------------
+
+
+%IFNDEF SIMPLEMSG_MSGS_SMFDF1_KLH__
+%DEFINE SIMPLEMSG_MSGS_SMFDF1_KLH__
+
+--------------------------------------------------------------------------------
+--
+-- Simple Message Dynamic Joints (libsmFDF1) routine
+-- prototypes
+--
+--
+--------------------------------------------------------------------------------
+
+
+
+
+--------------------------------------------------------------------------------
+--
+-- Returns the length of the serialised message in bytes.
+--
+-- NOTE: this routine effectively returns the cumulative size of all
+--       fields in the body of the message. Fields in the header are
+--       ignored.
+--
+-- [in    ]  this         : a message structure instance
+-- [return]               : number of bytes for serialised message
+--
+--------------------------------------------------------------------------------
+ROUTINE smFDF1_len(this : smFDF1_t; conn_info : smFDF0_t) : INTEGER FROM libsmFDF1
+
+
+
+
+--------------------------------------------------------------------------------
+--
+-- Constructor. Initialises given message instance.
+--
+-- [in-out]  this         : a message structure instance
+--
+--------------------------------------------------------------------------------
+ROUTINE smFDF1_ctor(this : smFDF1_t) FROM libsmFDF1
+
+
+
+
+--------------------------------------------------------------------------------
+--
+-- Resets fields in given message instance to their default values.
+--
+-- [in-out]  this         : a message structure instance
+--
+--------------------------------------------------------------------------------
+ROUTINE smFDF1_rset(this : smFDF1_t) FROM libsmFDF1
+
+
+
+
+--------------------------------------------------------------------------------
+--
+-- Deserialisation routine: reads from the bytestream accessed through 'fd' and
+-- overwrites 'this' with the reconstructed smFDF1_t instance.
+--
+-- NOTE: this routine deserialises ONLY the fields in the message body proper.
+--       The header (and pkt_len) fields are responsibility of the caller.
+--
+-- [in-out]  this         : a message structure instance
+-- [in    ]  fd           : the FILE descriptor to read from
+-- [return]               : < 0 IFF any error was encountered while reading from
+--                          'fd'. Otherwise: 0
+--
+--------------------------------------------------------------------------------
+ROUTINE smFDF1_read(this : smFDF1_t; fd : FILE) : INTEGER FROM libsmFDF1
+
+
+
+
+--------------------------------------------------------------------------------
+--
+-- Serialisation routine: writes all fields of the given smFDF1_t instance
+-- 'this' to the bytestream 'fd'.
+--
+-- NOTE: this routine serialises ONLY the fields in the message body proper.
+--       The header (and pkt_len) fields are responsibility of the caller.
+--
+-- [in    ]  this         : a message structure instance
+-- [in    ]  fd           : the FILE descriptor to write to
+-- [return]               : < 0 IFF any error was encountered while writing to
+--                          'fd'. Otherwise: 0
+--
+--------------------------------------------------------------------------------
+ROUTINE smFDF1_wrte(this : smFDF1_t; fd : FILE; conn_info : smFDF0_t) : INTEGER FROM libsmFDF1
+
+
+
+
+--- list prototypes ------------------------------------------------------------
+
+ROUTINE smFDF1l_ctor(this : smFDF1_lst_t) : INTEGER FROM libsmFDF1
+ROUTINE smFDF1l_size(this : smFDF1_lst_t) : INTEGER FROM libsmFDF1
+ROUTINE smFDF1l_cler(this : smFDF1_lst_t) FROM libsmFDF1
+ROUTINE smFDF1l_add (this : smFDF1_lst_t; e : smFDF1_lit_t) FROM libsmFDF1
+ROUTINE smFDF1l_apnd(this : smFDF1_lst_t; e : smFDF1_lit_t) FROM libsmFDF1
+ROUTINE smFDF1l_set (this : smFDF1_lst_t; idx : INTEGER; e : smFDF1_lit_t) : smFDF1_lit_t FROM libsmFDF1
+ROUTINE smFDF1l_get (this : smFDF1_lst_t; idx : INTEGER) : smFDF1_lit_t FROM libsmFDF1
+ROUTINE smFDF1l_take(this : smFDF1_lst_t; idx : INTEGER) : smFDF1_lit_t FROM libsmFDF1
+ROUTINE smFDF1l_rmov(this : smFDF1_lst_t; idx : INTEGER) FROM libsmFDF1
+ROUTINE smFDF1l_mpty(this : smFDF1_lst_t) : BOOLEAN FROM libsmFDF1
+ROUTINE smFDF1l_ins (this : smFDF1_lst_t; idx : INTEGER; e : smFDF1_lit_t) FROM libsmFDF1
+
+--- /list prototypes -----------------------------------------------------------
+
+
+%ENDIF -- SIMPLEMSG_MSGS_SMFDF1_KLH__

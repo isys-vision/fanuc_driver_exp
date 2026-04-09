@@ -16,14 +16,14 @@
 
 PROGRAM librosfanuc
 --------------------------------------------------------------------------------
--- 
+--
 -- librosfanuc implementation.
 --
 -- Utility functions to convert from and to ROS and Fanuc data structures
 -- and types.
--- 
+--
 -- author: G.A. vd. Hoorn (TU Delft Robotics Institute)
--- 
+--
 --------------------------------------------------------------------------------
 %ALPHABETIZE
 %COMMENT = 'ROS//r3b'
@@ -35,11 +35,12 @@ PROGRAM librosfanuc
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- local types & constants
--- 
+--
 --------------------------------------------------------------------------------
 %INCLUDE rosfanuc\rosfanuc.klt
+%INCLUDE mikmsgs\smFDF0.klt
 
 
 
@@ -55,9 +56,9 @@ PROGRAM librosfanuc
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- local routine prototypes
--- 
+--
 --------------------------------------------------------------------------------
 %INCLUDE rosfanuc\rosfanuc.klh
 
@@ -65,9 +66,9 @@ PROGRAM librosfanuc
 
 
 --------------------------------------------------------------------------------
--- 
+--
 -- Empty body
--- 
+--
 --------------------------------------------------------------------------------
 BEGIN
 END librosfanuc
@@ -113,13 +114,16 @@ BEGIN
 
 	-- convert units per axis from Fanuc to ROS using conversion factors in
 	-- group info struct
-	FOR i__ = 1 TO ARRAY_LEN(joint_data) DO
-		IF (i__ <= grp_nfo.num_axes) THEN
-			joint_data[i__] = joint_data[i__] * grp_nfo.cnv_fa_toros[i__]
-		ELSE
-			joint_data[i__] = 0.0
-		ENDIF
-	ENDFOR
+	-- conn_info determines if we have to convert to deg
+	IF(conn_info.is_state_rad=TRUE) THEN
+		FOR i__ = 1 TO ARRAY_LEN(joint_data) DO
+			IF (i__ <= grp_nfo.num_axes) THEN
+				joint_data[i__] = joint_data[i__] * grp_nfo.cnv_fa_toros[i__]
+			ELSE
+				joint_data[i__] = 0.0
+			ENDIF
+		ENDFOR
+	ENDIF
 
 	RETURN (stat__)
 END jpos_to_jdta
@@ -138,13 +142,16 @@ BEGIN
 
 	-- convert units per axis from ROS to Fanuc using conversion factors in
 	-- group info struct
-	FOR i__ = 1 TO ARRAY_LEN(joint_data) DO
-		IF (i__ <= grp_nfo.num_axes) THEN
-			joint_data[i__] = joint_data[i__] * grp_nfo.cnv_ros_tofa[i__]
-		ELSE
-			joint_data[i__] = 0.0
-		ENDIF
-	ENDFOR
+	-- conn_info tells us if we get the joint values in rad or deg
+	IF(conn_info.is_traj_rad=TRUE) THEN
+		FOR i__ = 1 TO ARRAY_LEN(joint_data) DO
+			IF (i__ <= grp_nfo.num_axes) THEN
+				joint_data[i__] = joint_data[i__] * grp_nfo.cnv_ros_tofa[i__]
+			ELSE
+				joint_data[i__] = 0.0
+			ENDIF
+		ENDFOR
+	ENDIF
 
 	CNV_REL_JPOS(joint_data, jpos, stat__)
 	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF

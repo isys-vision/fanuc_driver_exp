@@ -6,6 +6,9 @@
   "license" : "Apache 2.0",
   "author" : "G.A. vd. Hoorn",
   "source" : [
+    "src/libsmFDF0.kl",
+    "src/libsmFDF1.kl",
+    "src/libsmFDF2.kl",
     "src/librosfanuc.kl",
     "src/libssock.kl",
     "src/ros_state.kl",

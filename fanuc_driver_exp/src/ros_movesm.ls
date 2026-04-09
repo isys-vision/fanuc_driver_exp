@@ -1,94 +1,89 @@
 /PROG  ROS_MOVESM
 /ATTR
-OWNER       = MNEDITOR;
-COMMENT     = "ROS//r3b";
-PROG_SIZE	= 1102;
-CREATE      = DATE 17-07-25  TIME 09:00:00;
-MODIFIED    = DATE 17-07-25  TIME 09:00:00;
-FILE_NAME   = ;
-VERSION     = 0;
-LINE_COUNT	= 54;
-MEMORY_SIZE	= 1518;
-PROTECT     = READ_WRITE;
-TCD:  STACK_SIZE    = 0,
-      TASK_PRIORITY = 50,
-      TIME_SLICE    = 0,
-      BUSY_LAMP_OFF = 0,
-      ABORT_REQUEST = 0,
-      PAUSE_REQUEST = 0;
-DEFAULT_GROUP   = 1,*,*,*,*;
-CONTROL_CODE    = 00000000 00000000;
+OWNER		= MNEDITOR;
+COMMENT		= "ROS//r3b";
+PROG_SIZE	= 1290;
+CREATE		= DATE 17-07-25  TIME 09:00:00;
+MODIFIED	= DATE 26-04-09  TIME 17:28:40;
+FILE_NAME	= ;
+VERSION		= 0;
+LINE_COUNT	= 65;
+MEMORY_SIZE	= 1790;
+PROTECT		= READ_WRITE;
+TCD:  STACK_SIZE	= 0,
+      TASK_PRIORITY	= 50,
+      TIME_SLICE	= 0,
+      BUSY_LAMP_OFF	= 0,
+      ABORT_REQUEST	= 0,
+      PAUSE_REQUEST	= 0;
+DEFAULT_GROUP	= 1,*,*,*,*;
+CONTROL_CODE	= 00000000 00000000;
 /APPL
 /MN
-    :   ;
-    :  WAIT DO[145:pts2drv block] = OFF ;
-    :  DO[145:pts2drv block] = ON;
-    :  WAIT DO[146:curr_pt block] = OFF ;
-    :  DO[146:curr_pt block] = ON;
-    :  R[71:curr pr] = 0 ;
-    :  R[72:curr pt] = 0 ;
-    :  R[73:nr pts to drv] = 0 ;
-    :  DO[145:pts2drv block] = OFF;
-    :  DO[146:curr_pt block] = OFF;
-    :  R[74:ros skip] = 0 ;
-    :   ;
-    :  !listen to ros_traj for SKIPs ;
-    :  SKIP CONDITION R[74:ros skip]<>0 ;
-    :   ;
-    :  LBL[10] ;
-    :   ;
-    :  IF (R[73:nr pts to drv]<=0), JMP LBL[22] ;
-    :   ;
-    :  R[71:curr pr] = R[72:curr pt] + R[75:first pr] ;
-    :  IF (R[73:nr pts to drv]=1), JMP LBL[55] ;
-    :  J PR[R[71:curr pr]] 80% CNT 80 ACC 70 ;
-    :  JMP LBL[44] ;
-    :  LBL[55:last pt] ;
-    :  J PR[R[71:curr pr]] 50% CNT 5 ACC 60 ;
-    :  JMP LBL[44] ;
-    :  ;
-    :  LBL[44:after move] ;
-    :  IF R[74:ros skip]<>0, JMP LBL[20] ;
-    :  WAIT DO[145:pts2drv block] = OFF ;
-    :  DO[145:pts2drv block] = ON ;
-    :  WAIT DO[146:curr_pt block] = OFF ;
-    :  DO[146:curr_pt block] = ON;
-    :  R[73:nr pts to drv] = R[73:nr pts to drv] - 1 ;
-    :  R[72:curr pt] = R[72:curr pt] + 1 ;
-    :  DO[145:pts2drv block] = OFF;
-    :  DO[146:curr_pt block] = OFF;
-    :  IF R[72::curr pt] >= R[76:buff size], JMP LBL[18] ;
-    :  JMP LBL[10] ;
-    :  LBL[18] ;
-    :  WAIT DO[146:curr_pt block] = OFF ;
-    :  DO[146:curr_pt block] = ON ;
-    :  R[72:curr pt] = 0 ;
-    :  DO[146:curr_pt block] = OFF ;
-    :  JMP LBL[10] ;
-    :   ;
-    :  LBL[22:no drv pts] ;
-    :  WAIT 0.02sec ;
-    :  JMP LBL[10] ;
-    :  LBL[20:skip handler] ;
-    :   ;
-    :  !in any case re-enable skip ;
-    :  SKIP CONDITION R[74:ros skip]<>0 ;
-    :   ;
-    :  !on any unknown err, abort ;
-    :  IF R[74:ros skip]<>1,JMP LBL[999] ;
-    :  IF R[74:ros skip]=1,JMP LBL[999] ;
-    :   ;
-    :  !traj stop from ros_traj: ;
-    :  !don't touch R[5:ros skip], ;
-    :  !that is the responsibility ;
-    :  !of ros_traj. ;
-    :  JMP LBL[10] ;
-    :   ;
-    :   ;
-    :  LBL[999:abort];
-    :  !something else, abort ;
-    :  MESSAGE[ ROS Motion ABORT ] ;
-    :  ABORT ;
-    :   ;
+   1:   ;
+   2:  R[71]=0    ;
+   3:  R[72]=0    ;
+   4:  R[73]=0    ;
+   5:  DO[145]=OFF ;
+   6:  DO[146]=OFF ;
+   7:  DO[147]=OFF ;
+   8:  R[74]=0    ;
+   9:   ;
+  10:  !listen to ros_traj for SKIPs ;
+  11:  SKIP CONDITION R[74]<>0    ;
+  12:   ;
+  13:  LBL[10] ;
+  14:   ;
+  15:  WAIT DO[146]=OFF OR DO[147]=ON    ;
+  16:  IF (DO[147]=ON),JMP LBL[998] ;
+  17:   ;
+  18:  IF (R[73]<=0),JMP LBL[22] ;
+  19:   ;
+  20:  R[71]=R[72]+R[75]    ;
+  21:  IF ((R[73]=1) AND (DO[145]=ON)),JMP LBL[55] ;
+  22:J PR[R[71]] 100% CNT100 ACC100    ;
+  23:  JMP LBL[44] ;
+  24:  LBL[55:last pt] ;
+  25:J PR[R[71]] 100% FINE ACC100    ;
+  26:  JMP LBL[44] ;
+  27:   ;
+  28:  LBL[44:after move] ;
+  29:  IF R[74]<>0,JMP LBL[20] ;
+  30:  R[73]=R[73]-1    ;
+  31:  R[72]=R[72]+1    ;
+  32:  IF R[72]>=R[76],JMP LBL[18] ;
+  33:  JMP LBL[10] ;
+  34:  LBL[18] ;
+  35:  R[72]=0    ;
+  36:  DO[145]=OFF ;
+  37:  DO[146]=ON ;
+  38:  JMP LBL[10] ;
+  39:   ;
+  40:  LBL[22:no drv pts] ;
+  41:  WAIT    .01(sec) ;
+  42:  DO[146]=ON ;
+  43:  JMP LBL[10] ;
+  44:  LBL[20:skip handler] ;
+  45:   ;
+  46:  !in any case re-enable skip ;
+  47:  SKIP CONDITION R[74]<>0    ;
+  48:   ;
+  49:  !on any unknown err, abort ;
+  50:  IF R[74]<>1,JMP LBL[999] ;
+  51:  IF R[74]=1,JMP LBL[999] ;
+  52:   ;
+  53:  !traj stop from ros_traj: ;
+  54:  !don't touch R[5:ros skip], ;
+  55:  !that is the responsibility ;
+  56:  !of ros_traj. ;
+  57:  JMP LBL[10] ;
+  58:   ;
+  59:   ;
+  60:  LBL[999:abort] ;
+  61:  !something else, abort ;
+  62:  MESSAGE[ ROS Motion ABORT ] ;
+  63:  ABORT ;
+  64:  LBL[998] ;
+  65:  END ;
 /POS
 /END

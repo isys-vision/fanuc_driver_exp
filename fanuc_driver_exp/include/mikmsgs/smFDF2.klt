@@ -1,0 +1,54 @@
+-- Copyright (c) 2016, TU Delft Robotics Institute
+--
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+--
+--     http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+----------------------------------------------------------------------------------------------------------------------------
+-- This custom simple message definition is based on libsimplemsg by author G.A. vd. Hoorn (TU Delft Robotics Institute) --
+----------------------------------------------------------------------------------------------------------------------------
+
+%IFNDEF SIMPLEMSG_MSGS_SMFDF2_KLT__
+%DEFINE SIMPLEMSG_MSGS_SMFDF2_KLT__
+
+
+--------------------------------------------------------------------------------
+--
+-- Simple Message Connection Info (libsmFDF2) shared type
+-- and constant decls
+--
+--------------------------------------------------------------------------------
+
+
+%INCLUDE simplemsg\simplemsg.klt
+%INCLUDE simplemsg\sm_hdr.klt
+
+
+TYPE
+	smFDF2_t FROM libsmFDF2 = STRUCTURE
+		hdr          : sm_hdr_t
+		sequence     : INTEGER
+		joint_data   : ARRAY[SM_MAX_JOINT] OF REAL -- can contain up to SM_MAX_JOINT joints, but depends on connection info
+		velocity     : REAL -- only present if declared by connection info
+		duration     : REAL -- only present if declared by connection info
+	ENDSTRUCTURE
+
+
+	-- convenience: 'List ITem type' and 'LiST type'
+	smFDF2_lit_t FROM libsmFDF2 = smFDF2_t
+	smFDF2_lst_t FROM libsmFDF2 = PATH NODEDATA = smFDF2_lit_t
+
+
+CONST
+	SMFDF2_ID    = 65010
+	SMFDF2_NAME  = 'Dynamic Joints Trajectory Point'
+
+
+%ENDIF -- SIMPLEMSG_MSGS_SMFDF2_KLT__

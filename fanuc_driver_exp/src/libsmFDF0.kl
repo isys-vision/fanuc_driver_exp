@@ -1,0 +1,290 @@
+-- Copyright (c) 2016, TU Delft Robotics Institute
+--
+-- Licensed under the Apache License, Version 2.0 (the "License");
+-- you may not use this file except in compliance with the License.
+-- You may obtain a copy of the License at
+--
+--     http://www.apache.org/licenses/LICENSE-2.0
+--
+-- Unless required by applicable law or agreed to in writing, software
+-- distributed under the License is distributed on an "AS IS" BASIS,
+-- WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+-- See the License for the specific language governing permissions and
+-- limitations under the License.
+----------------------------------------------------------------------------------------------------------------------------
+-- This custom simple message definition is based on libsimplemsg by author G.A. vd. Hoorn (TU Delft Robotics Institute) --
+----------------------------------------------------------------------------------------------------------------------------
+
+
+PROGRAM libsmFDF0
+--------------------------------------------------------------------------------
+--
+-- Simple Message Connection Info (libsmFDF0)
+-- implementation
+--
+--
+--------------------------------------------------------------------------------
+%ALPHABETIZE
+%COMMENT = 'ROS//r0'
+%NOBUSYLAMP
+%NOLOCKGROUP
+%NOPAUSE = COMMAND + TPENABLE + ERROR
+
+
+
+
+--------------------------------------------------------------------------------
+--
+-- remote types & constants
+--
+--------------------------------------------------------------------------------
+%INCLUDE ktype_sz.klt
+%INCLUDE simplemsg\simplemsg.klt
+
+
+
+
+--------------------------------------------------------------------------------
+--
+-- local types & constants
+--
+--------------------------------------------------------------------------------
+%INCLUDE mikmsgs\smFDF0.klt
+
+
+
+
+--------------------------------------------------------------------------------
+--
+-- local variables
+--
+--------------------------------------------------------------------------------
+VAR
+	msg_len_     : INTEGER
+
+
+
+
+--------------------------------------------------------------------------------
+--
+-- remote routine prototypes
+--
+--------------------------------------------------------------------------------
+%INCLUDE simplemsg\sm_hdr.klh
+
+
+
+
+--------------------------------------------------------------------------------
+--
+-- local routine prototypes
+--
+--------------------------------------------------------------------------------
+%INCLUDE mikmsgs\smFDF0.klh
+
+
+
+
+--------------------------------------------------------------------------------
+--
+-- Empty body
+--
+--------------------------------------------------------------------------------
+BEGIN
+END libsmFDF0
+
+
+
+
+ROUTINE smFDF0_len
+BEGIN
+	IF (UNINIT(msg_len_)) THEN
+		msg_len_ = ( &
+			-- ints
+			(4 * SZ_INT) + &
+			-- bools
+			(5 * 1)) + 4
+	ENDIF
+	RETURN (msg_len_)
+END smFDF0_len
+
+
+
+
+ROUTINE smFDF0_ctor
+BEGIN
+	smFDF0_rset(this)
+END smFDF0_ctor
+
+
+
+
+ROUTINE smFDF0_rset
+VAR
+	i__          : INTEGER
+BEGIN
+	sm_hdr_rset(this.hdr)
+	this.hdr.msg_type   = smFDF0_ID
+	this.hdr.comm_type  = SM_CT_INVAL
+	this.hdr.reply_type = SM_RT_INVAL
+
+	this.nr_ax_traj = 0
+	this.nr_ax_state = 0
+	this.nr_eax_traj = 0
+	this.nr_eax_state = 0
+	this.traj_msg_len = 0
+	this.is_traj_rad = FALSE
+	this.is_state_rad = FALSE
+	this.is_traj_vel = FALSE
+	this.is_traj_dur = FALSE
+	this.is_traj_imov = FALSE
+END smFDF0_rset
+
+
+
+
+ROUTINE smFDF0_read
+VAR
+	stat__       : INTEGER
+	eom_bits     : INTEGER
+BEGIN
+	stat__ = 0
+
+	-- NOTE: ONLY fields in msg body are deserialised by this routine,
+	--       pkt_len & header are CALLERs reponsibility
+
+	READ fd(this.nr_ax_traj, this.nr_ax_state, this.nr_eax_traj, this.nr_eax_state,
+			this.is_traj_rad::1, this.is_state_rad::1, this.is_traj_vel::1,
+			this.is_traj_dur::1, this.is_traj_imov::1, eom_bits)
+	stat__ = IO_STATUS(fd)
+	IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
+
+	-- TODO: perhaps return nr of bytes consumed, so it can be checked
+	--       against header.len by caller
+	RETURN (-ABS(stat__))
+END smFDF0_read
+
+
+
+
+--- list routines --------------------------------------------------------------
+
+ROUTINE smFDF0l_ctor
+BEGIN
+	smFDF0l_cler(this)
+	RETURN (0)
+END smFDF0l_ctor
+
+
+
+
+ROUTINE smFDF0l_size
+BEGIN
+	RETURN (PATH_LEN(this))
+END smFDF0l_size
+
+
+
+
+ROUTINE smFDF0l_cler
+VAR
+	i__ : INTEGER
+BEGIN
+	i__ = smFDF0l_size(this)
+	-- TODO: why not just use 'i__'?
+	WHILE (smFDF0l_size(this) > 0) DO
+		smFDF0l_rmov(this, i__)
+		i__ = smFDF0l_size(this)
+	ENDWHILE
+END smFDF0l_cler
+
+
+
+
+ROUTINE smFDF0l_add
+VAR
+	stat__ : INTEGER
+	tmp__  : INTEGER
+BEGIN
+	APPEND_NODE(this, stat__)
+	-- TODO: check status of operation
+	tmp__ = smFDF0l_size(this)
+	this[tmp__] = e
+END smFDF0l_add
+
+
+
+
+ROUTINE smFDF0l_apnd
+BEGIN
+	smFDF0l_add(this, e)
+END smFDF0l_apnd
+
+
+
+
+ROUTINE smFDF0l_set
+VAR
+	tmp__  : smFDF0_lit_t
+	stat__ : INTEGER
+BEGIN
+	tmp__ = smFDF0l_get(this, idx)
+	this[idx] = e
+	RETURN (tmp__)
+END smFDF0l_set
+
+
+
+
+ROUTINE smFDF0l_get
+BEGIN
+	RETURN (this[idx])
+END smFDF0l_get
+
+
+
+
+ROUTINE smFDF0l_take
+VAR
+	tmp__  : smFDF0_lit_t
+	stat__ : INTEGER
+BEGIN
+	tmp__ = smFDF0l_get(this, idx)
+	DELETE_NODE(this, idx, stat__)
+	-- TODO: check status of operation
+	RETURN (tmp__)
+END smFDF0l_take
+
+
+
+
+ROUTINE smFDF0l_rmov
+VAR
+	stat__ : INTEGER
+BEGIN
+	DELETE_NODE(this, idx, stat__)
+	-- TODO: check status of operation
+END smFDF0l_rmov
+
+
+
+
+ROUTINE smFDF0l_mpty
+BEGIN
+	RETURN (smFDF0l_size(this) = 0)
+END smFDF0l_mpty
+
+
+
+
+ROUTINE smFDF0l_ins
+VAR
+	stat__ : INTEGER
+BEGIN
+	INSERT_NODE(this, idx, stat__)
+	-- TODO: check status of operation
+	this[idx] = e
+END smFDF0l_ins
+
+
+--- /list routines -------------------------------------------------------------

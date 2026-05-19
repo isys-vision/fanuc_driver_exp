@@ -278,9 +278,13 @@ END check_cfg_
 -- 
 --------------------------------------------------------------------------------
 ROUTINE ab_hndlr_
+VAR
+	status : INTEGER 
 BEGIN
 	shutdwn_req_ = TRUE
 	CANCEL FILE sock_fd_
+	SELECT_TPE('MIKADO', status)
+	ABORT
 END ab_hndlr_
 
 

@@ -4,7 +4,7 @@ Fanuc download driver requirements
 2. $Karel_ENB = 1
 
 Register, IOs, PRS USED IN THIS BRANCH:
-1. R[71:curr pr], R[72:curr pt], R[73:nr pts to drv], R[74:ros skip], R[75:first pr], R[76:buff size]
+1. R[71:curr_pr], R[72:curr_pt], R[73:nr_pts2drv], R[74:ros_skip], R[75:first_pr], R[76:buff_size]
 2. PR[61] - PR[90]
-3. DO[145:is last batch], DO[146:write_allowed], DO[147:leave mikado]
+3. DO[145:last_batch], DO[146:wrt_allowed], DO[147:giveup_cntrl]
 4. S3[state], S4[traj], S5[io]

@@ -35,7 +35,7 @@ CONTROL_CODE	= 00000000 00000000;
   14:  WAIT    .30(sec) ;
   15:  JMP LBL[1] ;
   16:  LBL[2:own_code] ;
-  17:  MESSAGE[ Exit ROS_MOVESM ] ;
+  17:  MESSAGE[ ROS_MOVESM exit ctrl ] ;
   18:  ! You can call your own functions ;
   19:  ! here. For Example: ;
   20:  ! CALL ProgramXYZ ;

@@ -4,7 +4,10 @@ Fanuc download driver requirements
 2. $Karel_ENB = 1
 
 Register, IOs, PRS USED IN THIS BRANCH:
-1. R[71:curr_pr], R[72:curr_pt], R[73:nr_pts2drv], R[74:ros_skip], R[75:first_pr], R[76:buff_size]
+1. R[71:curr_pr], R[72:curr_pt], R[73:nr_pts2drv], R[74:ros_skip], R[75:first_pr], R[76:buff_size], R[77:velocity]
 2. PR[61] - PR[90]
 3. DO[145:last_batch], DO[146:wrt_allowed], DO[147:giveup_cntrl]
 4. S3[state], S4[traj], S5[io]
+
+The velocity register is not used, unless the fanuc_driver has velocity_override & connection_info_is_traj_velocity enabled.
+Instead, a constant velocity is used by default.

@@ -84,6 +84,7 @@ TYPE
 		tp_val_trstp : INTEGER  -- value to set 'r_skip_sig' reg to to communicate traj stop
 		um_clear     : BOOLEAN  -- clear user menu on start
 		r_curr_pt    : INTEGER  -- r curr pt of mvm
+		r_velocity   : INTEGER  -- r velocity
 		do_nr_lstba  : INTEGER  -- digital output is_last_batch
 		do_nr_iswrt  : INTEGER  -- digital output is_write_allowed
 		is_debug     : BOOLEAN  -- bool determining whether to log to tp
@@ -894,6 +895,17 @@ BEGIN
 		-- set curr mv pt to 0
 		SET_INT_REG(cfg_.r_curr_pt, 0, stat__)
 		DOUT[cfg_.do_nr_lstba] = OFF
+		--  set velocity register (R[77]) to value we received or default (70)
+		IF(traj[1].velocity < 1.0) THEN
+			-- set default velocity
+			SET_INT_REG(cfg_.r_velocity, 70, stat__)
+		ELSE
+			SET_INT_REG(cfg_.r_velocity, ROUND(traj[1].velocity), stat__)
+		ENDIF
+		IF (stat__ <> 0) THEN
+			dlog_error(LOG_PFIX + 'error write vel')
+			RETURN(-1)
+		ENDIF
 		FOR curr_pt = 1 TO cfg_.pt_buff_size DO
 			pt_msg = traj[nr_points - rem_pts + 1]
 			-- convert pt

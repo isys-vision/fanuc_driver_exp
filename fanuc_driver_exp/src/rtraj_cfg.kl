@@ -75,6 +75,7 @@ CONST
 	r_curr_pt    = 72  -- r curr pt of mvm
 	do_nr_lstba  = 145 -- do for is last batch
 	do_nr_iswrt  = 146 -- do for is write allowed
+	r_velocity   = 77  -- register for robot velocity
 	LOG_PFIX     = 'TCFG '
 	is_debug     = TRUE
 
@@ -149,6 +150,9 @@ BEGIN
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.first_pr', first_pr, stat_)
+	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	SET_VAR(0, PROG_NAME, 'cfg_.r_velocity', r_velocity, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
 
 	SET_VAR(0, PROG_NAME, 'cfg_.r_first_pr', r_first_pr, stat_)

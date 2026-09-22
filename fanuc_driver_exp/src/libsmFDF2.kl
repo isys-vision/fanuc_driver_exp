@@ -164,6 +164,14 @@ BEGIN
 		READ fd(this.velocity)
 		stat__ = IO_STATUS(fd)
 		IF (stat__ <> 0) THEN RETURN (-stat__); ENDIF
+		IF(this.velocity > 100) THEN
+			this.velocity = 100
+		ENDIF
+		IF(this.velocity < 1 ) THEN
+			this.velocity = 1
+		ENDIF
+	ELSE
+		this.velocity = 0
 	ENDIF
 
 	IF(conn_info.nr_ax_traj > 5) THEN

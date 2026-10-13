@@ -75,7 +75,6 @@ CONTROL_CODE	= 00000000 00000000;
   53:  !don't touch R[74:ros_skip], ;
   54:  !that is the responsibility ;
   55:  !of ros_traj. ;
-  56:  JMP LBL[10] ;
   57:   ;
   58:  LBL[999:ros_skip_exit] ;
   59:  !something else, exit ;

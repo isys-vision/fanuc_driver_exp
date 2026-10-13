@@ -502,6 +502,7 @@ BEGIN
 						t_intr_wait = 4 * t_intr_wait
 						t_recv_traj = 0
 						t_des = 0
+						rst_cnclmtn_(cfg)
 						CONNECT TIMER TO t_recv_traj
 						dlog_info(LOG_PFIX + 'traj start received')
 						-- start requested: clear list

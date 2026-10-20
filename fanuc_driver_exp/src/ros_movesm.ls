@@ -54,7 +54,6 @@ CONTROL_CODE	= 00000000 00000000;
   32:  IF R[72:curr_pt]>=R[76:buff_size],JMP LBL[18] ;
   33:  JMP LBL[10] ;
   34:  LBL[18:end_of_buff] ;
-  35:  R[72:curr_pt]=0    ;
   36:  DO[145:last_batch]=OFF ;
   37:  DO[146:wrt_allowed]=ON ;
   38:  JMP LBL[10] ;

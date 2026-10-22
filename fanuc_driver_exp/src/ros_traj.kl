@@ -90,6 +90,7 @@ TYPE
 		is_debug     : BOOLEAN  -- bool determining whether to log to tp
 		min_stat_t   : INTEGER  -- state update delay when not processing traj
 		max_stat_t   : INTEGER  -- state update delay when processing traj
+		traj_vers    : REAL     -- version of ros_traj
 	ENDSTRUCTURE
 
 
@@ -107,6 +108,7 @@ CONST
 	SEV_ABORT    =    2  -- ABORT severity
 	MTION_GRP    =    1  -- motion group we target
 	                     -- TODO: add support for multi-group (GH #9)
+	TRAJ_VERS   = 1.0
 
 
 
@@ -204,6 +206,8 @@ BEGIN
 	t_wrt_traj = 0
 	t_des = 0
 	strt_msgs = 0
+
+	cfg_.traj_vers = TRAJ_VERS
 
 	CLOSE FILE sock_fd_
 	IF(UNINIT(cfg_.is_debug)) THEN
@@ -502,6 +506,7 @@ BEGIN
 						t_intr_wait = 4 * t_intr_wait
 						t_recv_traj = 0
 						t_des = 0
+						rst_cnclmtn_(cfg)
 						CONNECT TIMER TO t_recv_traj
 						dlog_info(LOG_PFIX + 'traj start received')
 						-- start requested: clear list
@@ -848,6 +853,8 @@ VAR
 	curr_pt      : INTEGER
 	cp_arr 		 : ARRAY[6] OF REAL
 	pos_diff     : REAL
+	is_real      : BOOLEAN
+	dummy_real   : REAL
 BEGIN
 	IF (nr_points <= 0) THEN
 		dlog_info(LOG_PFIX + 'Pushing trajectory of 0 pts')
@@ -892,6 +899,26 @@ BEGIN
 	WHILE(rem_pts > 0) DO
 		-- get write access wait for write allowed -> movesm is not driving
 		WAIT FOR DOUT[cfg_.do_nr_iswrt]
+		
+		-- IF IS MULT BATCH CHECK IF WE GOT TILL LAST PT
+		-- IF WE REACHED THE LAST PT OF THE BUFFER, THE LAST MOTION IS QUEUED
+		IF(nr_points <> rem_pts) THEN
+			GET_REG(cfg_.r_curr_pt, is_real, curr_pt, dummy_real, stat__)
+			IF(stat__ <> 0) THEN
+				dlog_error(LOG_PFIX + 'could not read pts2drv')
+				SET_INT_REG(cfg_.r_pts_to_drv, 0, stat__)
+				DOUT[cfg_.do_nr_iswrt] = OFF
+				RETURN(-2)
+			ENDIF
+			IF(curr_pt < (cfg_.pt_buff_size)) THEN
+				dlog_error(LOG_PFIX + 'did not finish prev batch')
+				dlog_error(LOG_PFIX + 'stopping traj execution')
+				SET_INT_REG(cfg_.r_pts_to_drv, 0, stat__)
+				DOUT[cfg_.do_nr_iswrt] = OFF
+				RETURN(-3)
+			ENDIF
+		ENDIF
+
 		-- set curr mv pt to 0
 		SET_INT_REG(cfg_.r_curr_pt, 0, stat__)
 		DOUT[cfg_.do_nr_lstba] = OFF
@@ -904,20 +931,17 @@ BEGIN
 		ENDIF
 		IF (stat__ <> 0) THEN
 			dlog_error(LOG_PFIX + 'error write vel')
-			RETURN(-1)
+			RETURN(-4)
 		ENDIF
 		FOR curr_pt = 1 TO cfg_.pt_buff_size DO
 			pt_msg = traj[nr_points - rem_pts + 1]
 			-- convert pt
 			stat__ = jdta_to_jpos(pt_msg.joint_data, grp_nfo_, jpos__, conn_info)
-			-- if velocity should be used be could reserve
-			-- the same Registers as PRs and write pt_msg.velocity into
-			-- the corresponding Register. This only works if velocity is actually sent.
 			-- write pt
 			SET_JPOS_REG(cfg_.first_pr + curr_pt - 1, jpos__, stat__)
 			IF (stat__ <> 0) THEN
 				dlog_error_a(LOG_PFIX + 'could not write pt', curr_pt)
-				RETURN(-1)
+				RETURN(-5)
 			ENDIF
 			rem_pts = rem_pts - 1
 			IF (rem_pts <= 0) THEN
@@ -952,7 +976,7 @@ BEGIN
 		-- first point not equal to current pose
 		SET_INT_REG(cfg_.r_pts_to_drv, 0, stat__)
 		DOUT[cfg_.do_nr_iswrt] = OFF
-		RETURN(-1)
+		RETURN(-6)
 END push_traj
 
 

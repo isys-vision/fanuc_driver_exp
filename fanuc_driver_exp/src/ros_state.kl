@@ -72,6 +72,7 @@ TYPE
 		s_tcp_nr     : INTEGER  -- TCP port to listen on
 		um_clear     : BOOLEAN  -- clear user menu on start
 		is_debug     : BOOLEAN  -- determines whether to print messages to TP
+		state_vers   : REAL     -- version of ros_state
 	ENDSTRUCTURE
 
 
@@ -87,6 +88,7 @@ CONST
 	SEV_ABORT    =    2  -- ABORT severity
 	MTION_GRP    =    1  -- motion group we target
 	                     -- TODO: add support for multi-group (GH #9)
+	STATE_VERS   = 1.0
 
 
 CONST
@@ -182,6 +184,7 @@ BEGIN
 	shutdwn_req_  = FALSE
 	is_conn_info  = FALSE
 	cninf_len__   = 0
+	cfg_.state_vers = STATE_VERS
 	IF(UNINIT(cfg_.is_debug)) THEN
 		cfg_.is_debug = TRUE
 	ENDIF

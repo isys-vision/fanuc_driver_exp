@@ -75,9 +75,12 @@ CONST
 	r_curr_pt    = 72  -- r curr pt of mvm
 	do_nr_lstba  = 145 -- do for is last batch
 	do_nr_iswrt  = 146 -- do for is write allowed
+	do_ga_ctrl   = 147 -- do for giving up robot control
 	r_velocity   = 77  -- register for robot velocity
 	LOG_PFIX     = 'TCFG '
 	is_debug     = TRUE
+
+	io_dout = 2 -- Digital output
 
 
 
@@ -93,6 +96,11 @@ VAR
 	s_s_str      : STRING[13]
 	s_var_str    : STRING[26]
 	i			 : INTEGER
+	rack_no      : INTEGER
+	slot_no      : INTEGER
+	phy_prt_type : INTEGER
+	phy_prt_no   : INTEGER
+	n_ports      : INTEGER
 
 
 
@@ -102,7 +110,7 @@ VAR
 -- remote routine prototypes
 --
 --------------------------------------------------------------------------------
-
+%INCLUDE indlog\indlog.klh
 
 
 
@@ -194,5 +202,33 @@ BEGIN
     s_var_str = s_s_str + '.$OPER'
 	SET_VAR(i, '*SYSTEM*', s_var_str, 3, stat_)
 	IF (stat_ <> 0) THEN POST_ERR(FILE_ILL_PRM, '', 0, SEV_ABORT); ENDIF
+
+	-- check IO assignment and throw error if required IOs are not assigned
+	GET_PORT_ASG(io_dout, do_nr_lstba, rack_no, slot_no, phy_prt_type, phy_prt_no, n_ports, stat_)
+	IF(stat_ <> 0) THEN
+		-- DO not assigned, throw error
+		log_force
+		log_error_a(LOG_PFIX + ' DO not assigned: ', do_nr_lstba)
+		log_error(LOG_PFIX + ' MIK will not work until DOs are assigned')
+		POST_ERR(stat_, '', 0, SEV_ABORT)
+	ENDIF
+
+	GET_PORT_ASG(io_dout, do_nr_iswrt, rack_no, slot_no, phy_prt_type, phy_prt_no, n_ports, stat_)
+	IF(stat_ <> 0) THEN
+		-- DO not assigned, throw error
+		log_force
+		log_error_a(LOG_PFIX + ' DO not assigned: ', do_nr_iswrt)
+		log_error(LOG_PFIX + ' MIK will not work until DOs are assigned')
+		POST_ERR(stat_, '', 0, SEV_ABORT)
+	ENDIF
+
+	GET_PORT_ASG(io_dout, do_ga_ctrl, rack_no, slot_no, phy_prt_type, phy_prt_no, n_ports, stat_)
+	IF(stat_ <> 0) THEN
+		-- DO not assigned, throw error
+		log_force
+		log_error_a(LOG_PFIX + ' DO not assigned: ', do_ga_ctrl)
+		log_error(LOG_PFIX + ' MIK will not work until DOs are assigned')
+		POST_ERR(stat_, '', 0, SEV_ABORT)
+	ENDIF
 
 END rtraj_cfg
